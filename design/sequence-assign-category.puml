@@ -1,0 +1,17 @@
+@startuml
+actor Client
+participant Controller
+participant Service
+participant ProductRepo
+participant CategoryRepo
+participant PCMRepo
+
+Client -> Controller: POST /catalog/products/{p}/categories/{c}
+Controller -> Service: addCategoryToProduct(p,c)
+Service -> ProductRepo: findById(p)
+Service -> CategoryRepo: findById(c)
+PCMRepo -> Service: existsByProductAndCategory ?
+Service -> PCMRepo: save(ProductCategoryMap)
+Service --> Controller: OK
+Controller --> Client: 200 OK
+@enduml

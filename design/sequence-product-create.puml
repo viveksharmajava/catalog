@@ -1,0 +1,15 @@
+@startuml
+actor Client
+participant Controller
+participant Service
+participant Repository
+participant Outbox
+
+Client -> Controller: POST /catalog/products
+Controller -> Service: createProduct(dto, principal)
+Service -> Repository: save(product)
+Repository --> Service: product(saved)
+Service -> Outbox: writeEvent(ProductCreated)
+Service --> Controller: productDto
+Controller --> Client: 200 OK
+@enduml

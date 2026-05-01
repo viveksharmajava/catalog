@@ -1,0 +1,20 @@
+@startuml
+start
+:Author creates/edits product (DRAFT);
+:Validate completeness;
+if (Valid?) then (yes)
+  :Write to DB as DRAFT;
+  :Mark ready for publish;
+  :Create CatalogVersion snapshot;
+  :Write Outbox event ProductValidated;
+  if (Publish now?) then (yes)
+    :Change status -> ACTIVE;
+    :Write Outbox event ProductPublished;
+  else (no)
+    :Keep DRAFT;
+  endif
+else (no)
+  :Return validation errors;
+endif
+stop
+@enduml

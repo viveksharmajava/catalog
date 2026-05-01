@@ -1,0 +1,32 @@
+@startuml
+
+package "catalog.entity" {
+  class Product {
+    Long id
+    String sku
+    String name
+    String description
+    String status
+    Long version
+    String createdBy
+  }
+
+  class Category {
+    Long id
+    String name
+    String slug
+    Long parentId
+    Boolean active
+  }
+
+  class ProductCategoryMap {
+    Long id
+    Long productId
+    Long categoryId
+  }
+}
+
+Product "1" <-- "*" ProductCategoryMap : has
+Category "1" <-- "*" ProductCategoryMap : has
+
+@enduml

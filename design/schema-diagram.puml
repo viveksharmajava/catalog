@@ -1,0 +1,35 @@
+@startuml
+entity users {
+  *id : bigint
+  --
+  username : varchar
+}
+entity roles {
+  *id : bigint
+  --
+  name : varchar
+}
+entity products {
+  *id : bigint
+  --
+  sku : varchar
+  name : varchar
+  description : text
+}
+entity categories {
+  *id : bigint
+  --
+  name : varchar
+  parent_id : bigint
+}
+entity product_category_map {
+  *id : bigint
+  --
+  product_id : bigint
+  category_id : bigint
+}
+
+users }|..|| roles : has
+products ||--o{ product_category_map
+categories ||--o{ product_category_map
+@enduml

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Catalog Service - Design Document</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif} h1{color:#2b6cb0}</style>
+</head>
+<body>
+  <h1>Catalog Service — High Level Design</h1>
+  <p>Version: 0.2</p>
+  <h2>Overview 🧭</h2>
+  <p>The Catalog Service manages product master data, categories, variants, attributes, media, publishing workflow, audit, and eventing. Designed as a modular monolith with microservice-ready boundaries.</p>
+
+  <h2>Goals & Non-Goals ✅ / ❌</h2>
+  <ul>
+    <li>Support product CRUD, publish workflow, categories, attributes, media (initial subset implemented)</li>
+    <li>Provide read-optimized APIs and event publishing via outbox → Kafka</li>
+    <li>Non-goal: full UI, payment, or order processing</li>
+  </ul>
+
+  <h2>Architecture (HLD) 🗂️</h2>
+  <p>Logical components:</p>
+  <ul>
+    <li>API Layer (Spring MVC controllers)</li>
+    <li>Security Layer (JWT / Stubbed header auth)</li>
+    <li>Service Layer (business logic, validations)</li>
+    <li>Repository Layer (JPA/Hibernate)</li>
+    <li>Outbox/Event Publisher (reliable eventing)</li>
+    <li>Read model / caching (Redis) — planned</li>
+    <li>Database (Postgres production, H2 for local dev)</li>
+  </ul>
+
+  <h3>Deployment</h3>
+  <ul>
+    <li>Single Spring Boot jar per service/module</li>
+    <li>Flyway for schema migrations</li>
+    <li>External services: Postgres, Redis, Kafka</li>
+  </ul>
+
+  <h2>Component Diagram (textual) 🧩</h2>
+  <pre>
+  [Client] -> [API Controller] -> [Service Layer] -> [Repository (JPA) -> Postgres]
+                                              -> [Outbox Table] -> [Outbox Publisher] -> Kafka
+                                              -> [Redis Cache] (read-optimized)
+  </pre>
+
+  <h2>Class Diagram (summary)</h2>
+  <p>Key domain classes:</p>
+  <ul>
+    <li>Product (id, sku, name, description, status, version, createdBy, createdAt, updatedAt)</li>
+    <li>Category (id, name, slug, description, parentId, active)</li>
+    <li>ProductCategoryMap (id, productId, categoryId)</li>
+    <li>AttributeDefinition, ProductAttribute, Variant, MediaAsset (planned)</li>
+  </ul>
+
+  <h2>Flows & Sequence Diagrams</h2>
+  <h3>Product Create</h3>
+  <pre>
+  Client -> POST /catalog/products
+    Controller validates DTO
+    -> Service creates Product (optimistic locking version=1)
+    -> Repository saves
+    -> Service writes Outbox event (ProductCreated)
+    -> Response 200 with ProductDto
+  </pre>
+
+  <h3>Assign Category to Product</h3>
+  <pre>
+  Client -> POST /catalog/products/{productId}/categories/{categoryId}
+    Controller -> Service.addCategoryToProduct
+      Service checks product & category exist
+      Service inserts into product_category_map (idempotent)
+      (optionally) writes outbox event ProductCategoryAssigned
+    Response 200
+  </pre>
+
+  <h2>Database Schema (high level)</h2>
+  <pre>
+  users(id, username, password, role_id)
+  roles(id, name)
+  products(id, sku, name, description, status, version, created_by, created_at, updated_at)
+  categories(id, name, slug, description, parent_id, active, created_by, created_at, updated_at)
+  product_category_map(id, product_id, category_id)
+  attribute_definitions(...)
+  product_attributes(...)
+  product_variants(...)
+  media_assets(...)
+  outbox_events(id, aggregate_type, aggregate_id, type, payload, processed)
+  audit_log(id, entity_type, entity_id, action, actor, timestamp, before_snapshot, after_snapshot)
+  </pre>
+
+  <h2>Security</h2>
+  <p>Initial implementation uses a stubbed header X-User: username:ROLE1,ROLE2. Later replace with JWT filter. Role-based checks enforced in service/controller layers.</p>
+
+  <h2>Observability & Logging</h2>
+  <ul>
+    <li>Structured logging (key=value) via Logback</li>
+    <li>Metrics endpoints (Actuator) — to be enabled</li>
+    <li>Correlation ID header propagated across services</li>
+  </ul>
+
+  <h2>Extensibility</h2>
+  <ul>
+    <li>Modular packages per domain (catalog, security, outbox, audit)</li>
+    <li>Services designed to be extracted as microservices</li>
+    <li>Use DTOs and mappers to decouple persistence models from API</li>
+  </ul>
+
+  <h2>Diagrams (embedded)</h2>
+  <p>Rendered diagrams are embedded below. Source PlantUML files are also included in this folder.</p>
+  <h3>Class Diagram</h3>
+  <img src="class-diagram.png" alt="Class Diagram" style="max-width:100%;height:auto;" />
+  <h3>Product Create Sequence</h3>
+  <img src="sequence-product-create.png" alt="Product Create Sequence" style="max-width:100%;height:auto;" />
+  <h3>Assign Category Sequence</h3>
+  <img src="sequence-assign-category.png" alt="Assign Category Sequence" style="max-width:100%;height:auto;" />
+  <h3>Publish Workflow</h3>
+  <img src="flowchart-publish-workflow.png" alt="Publish Workflow" style="max-width:100%;height:auto;" />
+  <h3>Schema Diagram</h3>
+  <img src="schema-diagram.png" alt="Schema Diagram" style="max-width:100%;height:auto;" />
+
+  <p>Also included: class-diagram.puml, sequence-product-create.puml, sequence-assign-category.puml, flowchart-publish-workflow.puml, schema-diagram.puml</p>
+
+  <hr/>
+  <p>Created by automation on request. Open this .doc file in Word to view diagrams. If images do not appear, render the .puml files using PlantUML and place the generated PNGs into this folder.</p>
+</body>
+</html>
