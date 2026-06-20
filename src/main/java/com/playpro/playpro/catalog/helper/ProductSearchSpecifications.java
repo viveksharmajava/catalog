@@ -28,12 +28,18 @@ public final class ProductSearchSpecifications {
             Specification<com.playpro.playpro.catalog.entity.product.Product> first,
             Specification<com.playpro.playpro.catalog.entity.product.Product> second,
             Specification<com.playpro.playpro.catalog.entity.product.Product> third) {
-        Specification<com.playpro.playpro.catalog.entity.product.Product> combined = first;
-        if (second != null) {
-            combined = combined == null ? second : combined.and(second);
-        }
-        if (third != null) {
-            combined = combined == null ? third : combined.and(third);
+        return combineAll(first, second, third);
+    }
+
+    @SafeVarargs
+    public static <T> Specification<T> combineAll(Specification<T>... specs) {
+        Specification<T> combined = null;
+        if (specs != null) {
+            for (Specification<T> spec : specs) {
+                if (spec != null) {
+                    combined = combined == null ? spec : combined.and(spec);
+                }
+            }
         }
         return combined;
     }

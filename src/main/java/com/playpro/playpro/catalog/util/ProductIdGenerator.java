@@ -18,4 +18,8 @@ public final class ProductIdGenerator {
     public static String nextFeatureId() {
         return "FEAT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
     }
+
+    public static String nextProdCatalogId() {
+        return "PCAT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+    }
 }
