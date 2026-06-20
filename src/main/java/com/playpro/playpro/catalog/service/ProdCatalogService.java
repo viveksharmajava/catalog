@@ -10,5 +10,7 @@ public interface ProdCatalogService {
 
     ProdCatalogDto getCatalog(String prodCatalogId);
 
+    ProdCatalogDto updateCatalog(String prodCatalogId, ProdCatalogDto dto);
+
     ProdCatalogFindResponse findCatalogs(ProdCatalogFindRequest request);
 }

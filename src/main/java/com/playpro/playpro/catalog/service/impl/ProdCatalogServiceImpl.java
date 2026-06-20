@@ -65,6 +65,17 @@ public class ProdCatalogServiceImpl implements ProdCatalogService {
     }
 
     @Override
+    public ProdCatalogDto updateCatalog(String prodCatalogId, ProdCatalogDto dto) {
+        if (!StringUtils.hasText(dto.getCatalogName())) {
+            throw new IllegalArgumentException("Catalog name is required");
+        }
+        ProdCatalog entity = prodCatalogRepository.findById(prodCatalogId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product catalog not found: " + prodCatalogId));
+        ProdCatalogMapper.applyDtoToEntity(dto, entity);
+        return ProdCatalogMapper.toDto(prodCatalogRepository.save(entity));
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public ProdCatalogFindResponse findCatalogs(ProdCatalogFindRequest request) {
         if (!request.hasFieldConditions() && !request.isNoConditionFind()) {
