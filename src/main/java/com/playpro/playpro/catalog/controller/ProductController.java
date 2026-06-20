@@ -3,6 +3,8 @@ package com.playpro.playpro.catalog.controller;
 import com.playpro.playpro.catalog.dto.ProductAttributeDto;
 import com.playpro.playpro.catalog.dto.ProductCategoryDto;
 import com.playpro.playpro.catalog.dto.ProductDto;
+import com.playpro.playpro.catalog.dto.ProductFindRequest;
+import com.playpro.playpro.catalog.dto.ProductFindResponse;
 import com.playpro.playpro.catalog.service.ProductService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -60,6 +62,11 @@ public class ProductController {
     @GetMapping("/search")
     public ResponseEntity<List<ProductDto>> search(@RequestParam("keyword") String keyword) {
         return ResponseEntity.ok(productService.searchByKeyword(keyword));
+    }
+
+    @PostMapping("/find")
+    public ResponseEntity<ProductFindResponse> findProducts(@RequestBody ProductFindRequest request) {
+        return ResponseEntity.ok(productService.findProducts(request));
     }
 
     @GetMapping("/{productId}/variants")

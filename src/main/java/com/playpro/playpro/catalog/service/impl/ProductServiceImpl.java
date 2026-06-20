@@ -3,6 +3,9 @@ package com.playpro.playpro.catalog.service.impl;
 import com.playpro.playpro.catalog.dto.ProductAttributeDto;
 import com.playpro.playpro.catalog.dto.ProductCategoryDto;
 import com.playpro.playpro.catalog.dto.ProductDto;
+import com.playpro.playpro.catalog.dto.ProductFindRequest;
+import com.playpro.playpro.catalog.dto.ProductFindResponse;
+import com.playpro.playpro.catalog.dto.ProductSummaryDto;
 import com.playpro.playpro.catalog.entity.category.ProductCategory;
 import com.playpro.playpro.catalog.entity.category.ProductCategoryMember;
 import com.playpro.playpro.catalog.entity.category.ProductCategoryMemberId;
@@ -16,6 +19,7 @@ import com.playpro.playpro.catalog.entity.product.ProductAttributeId;
 import com.playpro.playpro.catalog.entity.product.ProductKeyword;
 import com.playpro.playpro.catalog.entity.product.ProductKeywordId;
 import com.playpro.playpro.catalog.exception.ResourceNotFoundException;
+import com.playpro.playpro.catalog.helper.ProductSearchSpecifications;
 import com.playpro.playpro.catalog.helper.ProductWorker;
 import com.playpro.playpro.catalog.mapper.ProductMapper;
 import com.playpro.playpro.catalog.repository.GoodIdentificationRepository;
@@ -28,17 +32,29 @@ import com.playpro.playpro.catalog.repository.ProductRepository;
 import com.playpro.playpro.catalog.repository.ProductTypeRepository;
 import com.playpro.playpro.catalog.service.ProductService;
 import com.playpro.playpro.catalog.util.ProductIdGenerator;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @Transactional
 public class ProductServiceImpl implements ProductService {
+
+    private static final Set<String> SORTABLE_FIELDS = new HashSet<>(Arrays.asList(
+            "productId", "productTypeId", "internalName", "brandName", "productName", "description", "statusId"
+    ));
 
     private final ProductRepository productRepository;
     private final ProductTypeRepository productTypeRepository;
@@ -249,6 +265,49 @@ public class ProductServiceImpl implements ProductService {
         assoc.setId(assocId);
         assoc.setSequenceNum(BigDecimal.ONE);
         assocRepository.save(assoc);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProductFindResponse findProducts(ProductFindRequest request) {
+        if (!request.hasFieldConditions() && !request.isNoConditionFind()) {
+            ProductFindResponse empty = new ProductFindResponse();
+            empty.setPage(Math.max(request.getPage(), 0));
+            empty.setSize(Math.max(request.getSize(), 1));
+            return empty;
+        }
+
+        Specification<Product> spec = ProductSearchSpecifications.combine(
+                ProductSearchSpecifications.fieldCriteria("productId", request.getProductId()),
+                ProductSearchSpecifications.fieldCriteria("productName", request.getProductName()),
+                ProductSearchSpecifications.fieldCriteria("internalName", request.getInternalName())
+        );
+
+        int page = Math.max(request.getPage(), 0);
+        int size = Math.min(Math.max(request.getSize(), 1), 100);
+        Sort sort = buildSort(request.getSortField(), request.getSortDirection());
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<Product> result = spec == null
+                ? productRepository.findAll(pageable)
+                : productRepository.findAll(spec, pageable);
+
+        ProductFindResponse response = new ProductFindResponse();
+        response.setPage(result.getNumber());
+        response.setSize(result.getSize());
+        response.setTotalElements(result.getTotalElements());
+        response.setTotalPages(result.getTotalPages());
+        response.setContent(result.getContent().stream()
+                .map(ProductMapper::toSummaryDto)
+                .collect(Collectors.toList()));
+        return response;
+    }
+
+    private Sort buildSort(String sortField, String sortDirection) {
+        String field = SORTABLE_FIELDS.contains(sortField) ? sortField : "productId";
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDirection)
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(direction, field);
     }
 
     private Product loadProductWithType(String productId) {

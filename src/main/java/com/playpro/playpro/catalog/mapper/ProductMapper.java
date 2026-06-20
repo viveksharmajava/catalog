@@ -3,6 +3,7 @@ package com.playpro.playpro.catalog.mapper;
 import com.playpro.playpro.catalog.dto.ProductAttributeDto;
 import com.playpro.playpro.catalog.dto.ProductCategoryDto;
 import com.playpro.playpro.catalog.dto.ProductDto;
+import com.playpro.playpro.catalog.dto.ProductSummaryDto;
 import com.playpro.playpro.catalog.entity.category.ProductCategory;
 import com.playpro.playpro.catalog.entity.product.GoodIdentification;
 import com.playpro.playpro.catalog.entity.product.Product;
@@ -167,5 +168,17 @@ public final class ProductMapper {
                 .map(GoodIdentification::getIdValue)
                 .findFirst()
                 .orElse(null);
+    }
+
+    public static ProductSummaryDto toSummaryDto(Product product) {
+        ProductSummaryDto dto = new ProductSummaryDto();
+        dto.setProductId(product.getProductId());
+        dto.setProductTypeId(product.getProductTypeId());
+        dto.setInternalName(product.getInternalName());
+        dto.setBrandName(product.getBrandName());
+        dto.setProductName(product.getProductName());
+        dto.setDescription(product.getDescription());
+        dto.setStatusId(product.getStatusId());
+        return dto;
     }
 }

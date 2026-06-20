@@ -3,6 +3,8 @@ package com.playpro.playpro.catalog.service;
 import com.playpro.playpro.catalog.dto.ProductAttributeDto;
 import com.playpro.playpro.catalog.dto.ProductCategoryDto;
 import com.playpro.playpro.catalog.dto.ProductDto;
+import com.playpro.playpro.catalog.dto.ProductFindRequest;
+import com.playpro.playpro.catalog.dto.ProductFindResponse;
 
 import java.util.List;
 
@@ -31,4 +33,6 @@ public interface ProductService {
     void addKeyword(String productId, String keyword, String principal);
 
     void associateVariant(String virtualProductId, String variantProductId, String principal);
+
+    ProductFindResponse findProducts(ProductFindRequest request);
 }

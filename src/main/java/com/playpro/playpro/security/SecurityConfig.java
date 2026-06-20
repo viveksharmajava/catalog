@@ -32,6 +32,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .authorizeRequests()
                 .antMatchers(HttpMethod.POST, "/catalog/auth/login").permitAll()
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .antMatchers(HttpMethod.POST, "/catalog/products/find").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.GET, "/catalog/products/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.GET, "/catalog/categories/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.GET, "/catalog/reference/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
