@@ -1,19 +1,38 @@
 package com.playpro.playpro.catalog.service.impl;
 
-import com.playpro.playpro.catalog.dto.CategoryDto;
+import com.playpro.playpro.catalog.dto.ProductAttributeDto;
+import com.playpro.playpro.catalog.dto.ProductCategoryDto;
 import com.playpro.playpro.catalog.dto.ProductDto;
-import com.playpro.playpro.catalog.entity.Category;
-import com.playpro.playpro.catalog.entity.Product;
-import com.playpro.playpro.catalog.entity.ProductCategoryMap;
-import com.playpro.playpro.catalog.mapper.CategoryMapper;
+import com.playpro.playpro.catalog.entity.category.ProductCategory;
+import com.playpro.playpro.catalog.entity.category.ProductCategoryMember;
+import com.playpro.playpro.catalog.entity.category.ProductCategoryMemberId;
+import com.playpro.playpro.catalog.entity.product.GoodIdentification;
+import com.playpro.playpro.catalog.entity.product.GoodIdentificationId;
+import com.playpro.playpro.catalog.entity.product.Product;
+import com.playpro.playpro.catalog.entity.product.ProductAssoc;
+import com.playpro.playpro.catalog.entity.product.ProductAssocId;
+import com.playpro.playpro.catalog.entity.product.ProductAttribute;
+import com.playpro.playpro.catalog.entity.product.ProductAttributeId;
+import com.playpro.playpro.catalog.entity.product.ProductKeyword;
+import com.playpro.playpro.catalog.entity.product.ProductKeywordId;
+import com.playpro.playpro.catalog.exception.ResourceNotFoundException;
+import com.playpro.playpro.catalog.helper.ProductWorker;
 import com.playpro.playpro.catalog.mapper.ProductMapper;
-import com.playpro.playpro.catalog.repository.CategoryRepository;
-import com.playpro.playpro.catalog.repository.ProductCategoryMapRepository;
+import com.playpro.playpro.catalog.repository.GoodIdentificationRepository;
+import com.playpro.playpro.catalog.repository.ProductAssocRepository;
+import com.playpro.playpro.catalog.repository.ProductAttributeRepository;
+import com.playpro.playpro.catalog.repository.ProductCategoryMemberRepository;
+import com.playpro.playpro.catalog.repository.ProductCategoryRepository;
+import com.playpro.playpro.catalog.repository.ProductKeywordRepository;
 import com.playpro.playpro.catalog.repository.ProductRepository;
+import com.playpro.playpro.catalog.repository.ProductTypeRepository;
 import com.playpro.playpro.catalog.service.ProductService;
+import com.playpro.playpro.catalog.util.ProductIdGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,57 +40,249 @@ import java.util.stream.Collectors;
 @Transactional
 public class ProductServiceImpl implements ProductService {
 
-    private final ProductRepository repository;
-    private final CategoryRepository categoryRepository;
-    private final ProductCategoryMapRepository pcmRepository;
+    private final ProductRepository productRepository;
+    private final ProductTypeRepository productTypeRepository;
+    private final ProductCategoryRepository categoryRepository;
+    private final ProductCategoryMemberRepository memberRepository;
+    private final GoodIdentificationRepository goodIdentificationRepository;
+    private final ProductAttributeRepository attributeRepository;
+    private final ProductKeywordRepository keywordRepository;
+    private final ProductAssocRepository assocRepository;
+    private final ProductWorker productWorker;
 
-    public ProductServiceImpl(ProductRepository repository, CategoryRepository categoryRepository, ProductCategoryMapRepository pcmRepository) {
-        this.repository = repository;
+    public ProductServiceImpl(ProductRepository productRepository,
+                              ProductTypeRepository productTypeRepository,
+                              ProductCategoryRepository categoryRepository,
+                              ProductCategoryMemberRepository memberRepository,
+                              GoodIdentificationRepository goodIdentificationRepository,
+                              ProductAttributeRepository attributeRepository,
+                              ProductKeywordRepository keywordRepository,
+                              ProductAssocRepository assocRepository,
+                              ProductWorker productWorker) {
+        this.productRepository = productRepository;
+        this.productTypeRepository = productTypeRepository;
         this.categoryRepository = categoryRepository;
-        this.pcmRepository = pcmRepository;
+        this.memberRepository = memberRepository;
+        this.goodIdentificationRepository = goodIdentificationRepository;
+        this.attributeRepository = attributeRepository;
+        this.keywordRepository = keywordRepository;
+        this.assocRepository = assocRepository;
+        this.productWorker = productWorker;
     }
 
     @Override
     public ProductDto createProduct(ProductDto dto, String principal) {
-        Product p = ProductMapper.toEntity(dto);
-        p.setCreatedBy(principal);
-        if (p.getStatus() == null) p.setStatus("DRAFT");
-        Product saved = repository.save(p);
-        return ProductMapper.toDto(saved);
+        validateProductType(dto.getProductTypeId());
+        if (dto.getPrimaryProductCategoryId() != null) {
+            ensureCategoryExists(dto.getPrimaryProductCategoryId());
+        }
+
+        Product product = new Product();
+        product.setProductId(dto.getProductId() != null ? dto.getProductId() : ProductIdGenerator.nextProductId());
+        product.setProductTypeId(dto.getProductTypeId() != null ? dto.getProductTypeId() : "FINISHED_GOOD");
+        product.setStatusId(dto.getStatusId() != null ? dto.getStatusId() : ProductWorker.STATUS_DRAFT);
+        ProductMapper.applyDtoToEntity(dto, product);
+        if (product.getProductName() == null || product.getProductName().trim().isEmpty()) {
+            throw new IllegalArgumentException("productName is required");
+        }
+        if (product.getInternalName() == null) {
+            product.setInternalName(product.getProductName());
+        }
+        product.applyAuditOnCreate(principal);
+        productRepository.save(product);
+
+        if (dto.getSku() != null && !dto.getSku().trim().isEmpty()) {
+            saveSku(product.getProductId(), dto.getSku());
+        }
+
+        if (dto.getPrimaryProductCategoryId() != null) {
+            addCategoryToProduct(product.getProductId(), dto.getPrimaryProductCategoryId(), principal);
+        }
+
+        if (dto.getKeywords() != null) {
+            for (String keyword : dto.getKeywords()) {
+                addKeyword(product.getProductId(), keyword, principal);
+            }
+        }
+
+        return getProduct(product.getProductId());
+    }
+
+    @Override
+    public ProductDto updateProduct(String productId, ProductDto dto, String principal) {
+        Product product = loadProductWithType(productId);
+        ProductMapper.applyDtoToEntity(dto, product);
+        product.applyAuditOnUpdate(principal);
+        productRepository.save(product);
+
+        if (dto.getSku() != null) {
+            saveSku(productId, dto.getSku());
+        }
+        return getProduct(productId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ProductDto getProduct(Long id) {
-        return repository.findById(id).map(ProductMapper::toDto).orElse(null);
-    }
-
-    @Override
-    public void addCategoryToProduct(Long productId, Long categoryId, String principal) {
-        Product product = repository.findById(productId).orElseThrow(() -> new IllegalArgumentException("Product not found"));
-        Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new IllegalArgumentException("Category not found"));
-        // idempotent
-        if (pcmRepository.findByProductIdAndCategoryId(productId, categoryId).isPresent()) return;
-        ProductCategoryMap pcm = new ProductCategoryMap();
-        pcm.setProductId(product.getId());
-        pcm.setCategoryId(category.getId());
-        pcmRepository.save(pcm);
-    }
-
-    @Override
-    public void removeCategoryFromProduct(Long productId, Long categoryId, String principal) {
-        // idempotent
-        pcmRepository.deleteByProductIdAndCategoryId(productId, categoryId);
+    public ProductDto getProduct(String productId) {
+        Product product = loadProductWithType(productId);
+        return buildProductDto(product);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<CategoryDto> getCategoriesForProduct(Long productId) {
-        List<ProductCategoryMap> maps = pcmRepository.findByProductId(productId);
-        return maps.stream()
-                .map(m -> categoryRepository.findById(m.getCategoryId()).orElse(null))
-                .filter(c -> c != null)
-                .map(CategoryMapper::toDto)
+    public ProductDto getProductBySku(String sku) {
+        GoodIdentification gid = goodIdentificationRepository
+                .findByIdGoodIdentificationTypeIdAndIdValue(ProductWorker.ID_TYPE_SKU, sku)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found for SKU: " + sku));
+        return getProduct(gid.getId().getProductId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductDto> searchByKeyword(String keyword) {
+        return keywordRepository.findByIdKeywordContainingIgnoreCase(keyword).stream()
+                .map(k -> getProduct(k.getId().getProductId()))
+                .distinct()
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductDto> getVariants(String virtualProductId) {
+        Product virtual = loadProductWithType(virtualProductId);
+        if (!productWorker.isVirtual(virtual)) {
+            throw new IllegalArgumentException("Product is not a virtual product: " + virtualProductId);
+        }
+        LocalDateTime now = LocalDateTime.now();
+        return assocRepository.findActiveAssocsFrom(virtualProductId, ProductWorker.ASSOC_VARIANT, now).stream()
+                .map(a -> getProduct(a.getId().getProductIdTo()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public void addCategoryToProduct(String productId, String categoryId, String principal) {
+        loadProductWithType(productId);
+        ensureCategoryExists(categoryId);
+        LocalDateTime now = LocalDateTime.now();
+        ProductCategoryMemberId memberId = new ProductCategoryMemberId(categoryId, productId, now);
+        if (memberRepository.findById(memberId).isPresent()) {
+            return;
+        }
+        ProductCategoryMember member = new ProductCategoryMember();
+        member.setId(memberId);
+        member.setSequenceNum(BigDecimal.ONE);
+        memberRepository.save(member);
+    }
+
+    @Override
+    public void removeCategoryFromProduct(String productId, String categoryId, String principal) {
+        List<ProductCategoryMember> members = memberRepository.findByIdProductId(productId);
+        for (ProductCategoryMember member : members) {
+            if (categoryId.equals(member.getId().getProductCategoryId())) {
+                member.setThruDate(LocalDateTime.now());
+                memberRepository.save(member);
+            }
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductCategoryDto> getCategoriesForProduct(String productId) {
+        loadProductWithType(productId);
+        LocalDateTime now = LocalDateTime.now();
+        return memberRepository.findByIdProductId(productId).stream()
+                .filter(m -> m.getThruDate() == null || m.getThruDate().isAfter(now))
+                .map(m -> categoryRepository.findById(m.getId().getProductCategoryId()).orElse(null))
+                .filter(c -> c != null)
+                .map(ProductMapper::toCategoryDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public ProductAttributeDto addAttribute(String productId, ProductAttributeDto dto, String principal) {
+        loadProductWithType(productId);
+        if (dto.getAttrName() == null || dto.getAttrName().trim().isEmpty()) {
+            throw new IllegalArgumentException("attrName is required");
+        }
+        ProductAttribute attribute = new ProductAttribute();
+        attribute.setId(new ProductAttributeId(productId, dto.getAttrName()));
+        attribute.setAttrValue(dto.getAttrValue());
+        attribute.setAttrType(dto.getAttrType());
+        attribute.setAttrDescription(dto.getAttrDescription());
+        attributeRepository.save(attribute);
+        return ProductMapper.toAttributeDto(attribute);
+    }
+
+    @Override
+    public void addKeyword(String productId, String keyword, String principal) {
+        loadProductWithType(productId);
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return;
+        }
+        ProductKeywordId id = new ProductKeywordId(productId, keyword.trim().toLowerCase(), "KWT_TAG");
+        if (keywordRepository.findById(id).isPresent()) {
+            return;
+        }
+        ProductKeyword productKeyword = new ProductKeyword();
+        productKeyword.setId(id);
+        productKeyword.setRelevancyWeight(BigDecimal.TEN);
+        productKeyword.setStatusId("KW_APPROVED");
+        keywordRepository.save(productKeyword);
+    }
+
+    @Override
+    public void associateVariant(String virtualProductId, String variantProductId, String principal) {
+        Product virtual = loadProductWithType(virtualProductId);
+        Product variant = loadProductWithType(variantProductId);
+        if (!productWorker.isVirtual(virtual)) {
+            throw new IllegalArgumentException("Source product must be virtual");
+        }
+        if (!productWorker.isVariant(variant)) {
+            throw new IllegalArgumentException("Target product must be a variant");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        ProductAssocId assocId = new ProductAssocId(virtualProductId, variantProductId, ProductWorker.ASSOC_VARIANT, now);
+        if (assocRepository.findById(assocId).isPresent()) {
+            return;
+        }
+        ProductAssoc assoc = new ProductAssoc();
+        assoc.setId(assocId);
+        assoc.setSequenceNum(BigDecimal.ONE);
+        assocRepository.save(assoc);
+    }
+
+    private Product loadProductWithType(String productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
+        productTypeRepository.findById(product.getProductTypeId()).ifPresent(product::setProductType);
+        return product;
+    }
+
+    private ProductDto buildProductDto(Product product) {
+        List<GoodIdentification> ids = goodIdentificationRepository.findByIdProductId(product.getProductId());
+        List<ProductKeyword> keywords = keywordRepository.findByIdProductId(product.getProductId());
+        List<ProductAttribute> attributes = attributeRepository.findByIdProductId(product.getProductId());
+        return ProductMapper.toDto(product, productWorker, ProductMapper.extractSku(ids), keywords, attributes);
+    }
+
+    private void validateProductType(String productTypeId) {
+        String typeId = productTypeId != null ? productTypeId : "FINISHED_GOOD";
+        if (!productTypeRepository.existsById(typeId)) {
+            throw new IllegalArgumentException("Unknown productTypeId: " + typeId);
+        }
+    }
+
+    private void ensureCategoryExists(String categoryId) {
+        if (!categoryRepository.existsById(categoryId)) {
+            throw new ResourceNotFoundException("Category not found: " + categoryId);
+        }
+    }
+
+    private void saveSku(String productId, String sku) {
+        GoodIdentificationId id = new GoodIdentificationId(ProductWorker.ID_TYPE_SKU, productId);
+        GoodIdentification gid = goodIdentificationRepository.findById(id).orElse(new GoodIdentification());
+        gid.setId(id);
+        gid.setIdValue(sku);
+        goodIdentificationRepository.save(gid);
     }
 }
