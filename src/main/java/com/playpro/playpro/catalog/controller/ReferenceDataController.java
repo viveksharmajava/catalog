@@ -54,6 +54,15 @@ public class ReferenceDataController {
         ));
     }
 
+    @GetMapping("/category-types")
+    public ResponseEntity<List<Map<String, String>>> categoryTypes() {
+        return ResponseEntity.ok(Arrays.asList(
+                option("CATALOG_CATEGORY", "Catalog Browse Category"),
+                option("SEARCH_CATEGORY", "Search Category"),
+                option("INTERNAL_CATEGORY", "Internal Merchandising Category")
+        ));
+    }
+
     private Map<String, String> toTypeOption(ProductType type) {
         Map<String, String> map = new HashMap<>();
         map.put("id", type.getProductTypeId());

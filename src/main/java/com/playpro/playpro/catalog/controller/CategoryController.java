@@ -1,5 +1,7 @@
 package com.playpro.playpro.catalog.controller;
 
+import com.playpro.playpro.catalog.dto.CategoryFindRequest;
+import com.playpro.playpro.catalog.dto.CategoryFindResponse;
 import com.playpro.playpro.catalog.dto.ProductCategoryDto;
 import com.playpro.playpro.catalog.service.CategoryService;
 import org.springframework.http.ResponseEntity;
@@ -50,6 +52,11 @@ public class CategoryController {
     @GetMapping("/{categoryId}")
     public ResponseEntity<ProductCategoryDto> get(@PathVariable("categoryId") String categoryId) {
         return ResponseEntity.ok(categoryService.getCategory(categoryId));
+    }
+
+    @PostMapping("/find")
+    public ResponseEntity<CategoryFindResponse> find(@RequestBody CategoryFindRequest request) {
+        return ResponseEntity.ok(categoryService.findCategories(request));
     }
 
     @GetMapping("/tree")

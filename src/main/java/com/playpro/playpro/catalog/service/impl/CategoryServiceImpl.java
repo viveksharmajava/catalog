@@ -1,28 +1,44 @@
 package com.playpro.playpro.catalog.service.impl;
 
+import com.playpro.playpro.catalog.dto.CategoryFindRequest;
+import com.playpro.playpro.catalog.dto.CategoryFindResponse;
 import com.playpro.playpro.catalog.dto.ProductCategoryDto;
 import com.playpro.playpro.catalog.entity.category.ProductCategory;
 import com.playpro.playpro.catalog.entity.category.ProductCategoryRollup;
 import com.playpro.playpro.catalog.entity.category.ProductCategoryRollupId;
 import com.playpro.playpro.catalog.exception.ResourceNotFoundException;
 import com.playpro.playpro.catalog.helper.CategoryWorker;
+import com.playpro.playpro.catalog.helper.ProductSearchSpecifications;
 import com.playpro.playpro.catalog.mapper.ProductMapper;
 import com.playpro.playpro.catalog.repository.ProductCategoryRepository;
 import com.playpro.playpro.catalog.repository.ProductCategoryRollupRepository;
 import com.playpro.playpro.catalog.service.CategoryService;
 import com.playpro.playpro.catalog.util.IndicatorUtil;
 import com.playpro.playpro.catalog.util.ProductIdGenerator;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @Transactional
 public class CategoryServiceImpl implements CategoryService {
+
+    private static final Set<String> SORTABLE_FIELDS = new HashSet<>(Arrays.asList(
+            "productCategoryId", "productCategoryTypeId", "primaryParentCategoryId",
+            "categoryName", "description"
+    ));
 
     private final ProductCategoryRepository categoryRepository;
     private final ProductCategoryRollupRepository rollupRepository;
@@ -63,21 +79,10 @@ public class CategoryServiceImpl implements CategoryService {
     public ProductCategoryDto updateCategory(String categoryId, ProductCategoryDto dto, String principal) {
         ProductCategory category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
-        if (dto.getCategoryName() != null) {
-            category.setCategoryName(dto.getCategoryName());
+        if (dto.getPrimaryParentCategoryId() != null && !dto.getPrimaryParentCategoryId().trim().isEmpty()) {
+            ensureCategoryExists(dto.getPrimaryParentCategoryId());
         }
-        if (dto.getDescription() != null) {
-            category.setDescription(dto.getDescription());
-        }
-        if (dto.getLongDescription() != null) {
-            category.setLongDescription(dto.getLongDescription());
-        }
-        if (dto.getCategoryImageUrl() != null) {
-            category.setCategoryImageUrl(dto.getCategoryImageUrl());
-        }
-        if (dto.getShowInSelect() != null) {
-            category.setShowInSelect(IndicatorUtil.toIndicator(dto.getShowInSelect()));
-        }
+        ProductMapper.applyCategoryDtoToEntity(dto, category);
         category.applyAuditOnUpdate(principal);
         categoryRepository.save(category);
         return enrichCategoryDto(category);
@@ -89,6 +94,48 @@ public class CategoryServiceImpl implements CategoryService {
         ProductCategory category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
         return enrichCategoryDto(category);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CategoryFindResponse findCategories(CategoryFindRequest request) {
+        if (!request.hasFieldConditions() && !request.isNoConditionFind()) {
+            CategoryFindResponse empty = new CategoryFindResponse();
+            empty.setPage(Math.max(request.getPage(), 0));
+            empty.setSize(Math.max(request.getSize(), 1));
+            return empty;
+        }
+
+        Specification<ProductCategory> spec = ProductSearchSpecifications.combineAll(
+                ProductSearchSpecifications.fieldCriteria("productCategoryId", request.getProductCategoryId()),
+                ProductSearchSpecifications.fieldCriteria("categoryName", request.getCategoryName())
+        );
+
+        int page = Math.max(request.getPage(), 0);
+        int size = Math.min(Math.max(request.getSize(), 1), 100);
+        Sort sort = buildSort(request.getSortField(), request.getSortDirection());
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<ProductCategory> result = spec == null
+                ? categoryRepository.findAll(pageable)
+                : categoryRepository.findAll(spec, pageable);
+
+        CategoryFindResponse response = new CategoryFindResponse();
+        response.setPage(result.getNumber());
+        response.setSize(result.getSize());
+        response.setTotalElements(result.getTotalElements());
+        response.setTotalPages(result.getTotalPages());
+        response.setContent(result.getContent().stream()
+                .map(ProductMapper::toCategorySummaryDto)
+                .collect(Collectors.toList()));
+        return response;
+    }
+
+    private Sort buildSort(String sortField, String sortDirection) {
+        String field = SORTABLE_FIELDS.contains(sortField) ? sortField : "categoryName";
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDirection)
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(direction, field);
     }
 
     @Override

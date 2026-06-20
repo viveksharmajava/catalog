@@ -1,5 +1,6 @@
 package com.playpro.playpro.catalog.mapper;
 
+import com.playpro.playpro.catalog.dto.CategorySummaryDto;
 import com.playpro.playpro.catalog.dto.ProductAttributeDto;
 import com.playpro.playpro.catalog.dto.ProductCategoryDto;
 import com.playpro.playpro.catalog.dto.ProductDto;
@@ -89,6 +90,40 @@ public final class ProductMapper {
         dto.setCategoryImageUrl(category.getCategoryImageUrl());
         dto.setShowInSelect(IndicatorUtil.fromIndicator(category.getShowInSelect()));
         return dto;
+    }
+
+    public static CategorySummaryDto toCategorySummaryDto(ProductCategory category) {
+        CategorySummaryDto dto = new CategorySummaryDto();
+        dto.setProductCategoryId(category.getProductCategoryId());
+        dto.setProductCategoryTypeId(category.getProductCategoryTypeId());
+        dto.setPrimaryParentCategoryId(category.getPrimaryParentCategoryId());
+        dto.setCategoryName(category.getCategoryName());
+        dto.setDescription(category.getDescription());
+        return dto;
+    }
+
+    public static void applyCategoryDtoToEntity(ProductCategoryDto dto, ProductCategory category) {
+        if (dto.getProductCategoryTypeId() != null) {
+            category.setProductCategoryTypeId(dto.getProductCategoryTypeId());
+        }
+        if (dto.getPrimaryParentCategoryId() != null) {
+            category.setPrimaryParentCategoryId(dto.getPrimaryParentCategoryId());
+        }
+        if (dto.getCategoryName() != null) {
+            category.setCategoryName(dto.getCategoryName());
+        }
+        if (dto.getDescription() != null) {
+            category.setDescription(dto.getDescription());
+        }
+        if (dto.getLongDescription() != null) {
+            category.setLongDescription(dto.getLongDescription());
+        }
+        if (dto.getCategoryImageUrl() != null) {
+            category.setCategoryImageUrl(dto.getCategoryImageUrl());
+        }
+        if (dto.getShowInSelect() != null) {
+            category.setShowInSelect(IndicatorUtil.toIndicator(dto.getShowInSelect()));
+        }
     }
 
     public static void applyDtoToEntity(ProductDto dto, Product product) {
