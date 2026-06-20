@@ -18,4 +18,8 @@ public interface ProductCategoryRollupRepository extends JpaRepository<ProductCa
     @Query("SELECT COUNT(r) FROM ProductCategoryRollup r WHERE r.id.parentProductCategoryId = :parentId "
             + "AND (r.thruDate IS NULL OR r.thruDate > :now)")
     long countActiveChildren(@Param("parentId") String parentId, @Param("now") LocalDateTime now);
+
+    List<ProductCategoryRollup> findByIdProductCategoryIdOrderBySequenceNumAsc(String productCategoryId);
+
+    List<ProductCategoryRollup> findByIdParentProductCategoryIdOrderBySequenceNumAsc(String parentProductCategoryId);
 }

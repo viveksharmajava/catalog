@@ -63,6 +63,19 @@ public class ReferenceDataController {
         ));
     }
 
+    @GetMapping("/prod-catalog-category-types")
+    public ResponseEntity<List<Map<String, String>>> prodCatalogCategoryTypes() {
+        return ResponseEntity.ok(Arrays.asList(
+                option("PCCT_BROWSE_ROOT", "Browse Root (One)"),
+                option("PCCT_SEARCH", "Default Search (One)"),
+                option("PCCT_OTHER_SEARCH", "Other Search (Many)"),
+                option("PCCT_QUICK_ADD", "Quick Add (Many)"),
+                option("PCCT_PROMOTIONS", "Promotions (One)"),
+                option("PCCT_MOST_POPULAR", "Most Popular (One)"),
+                option("PCCT_WHATS_NEW", "What's New (One)")
+        ));
+    }
+
     private Map<String, String> toTypeOption(ProductType type) {
         Map<String, String> map = new HashMap<>();
         map.put("id", type.getProductTypeId());
