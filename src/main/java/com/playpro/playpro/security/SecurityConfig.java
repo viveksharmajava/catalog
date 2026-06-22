@@ -28,6 +28,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.cors().and().csrf().disable()
+                .httpBasic().disable()
+                .formLogin().disable()
+                .logout().disable()
+                .exceptionHandling()
+                .authenticationEntryPoint(new JsonUnauthorizedEntryPoint())
+                .and()
                 .addFilterBefore(stubAuthFilter(), UsernamePasswordAuthenticationFilter.class)
                 .authorizeRequests()
                 .antMatchers(HttpMethod.POST, "/catalog/auth/login").permitAll()
@@ -37,8 +43,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers(HttpMethod.POST, "/catalog/categories/find").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.GET, "/catalog/products/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.GET, "/catalog/prod-catalogs/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
+                .antMatchers(HttpMethod.GET, "/catalog/product-stores/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.GET, "/catalog/categories/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.GET, "/catalog/reference/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
+                .antMatchers(HttpMethod.GET, "/catalog/product-images/**").permitAll()
                 .antMatchers("/catalog/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER")
                 .anyRequest().denyAll();
     }

@@ -22,4 +22,8 @@ public final class ProductIdGenerator {
     public static String nextProdCatalogId() {
         return "PCAT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
     }
+
+    public static String nextProductStoreId() {
+        return "STORE-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+    }
 }

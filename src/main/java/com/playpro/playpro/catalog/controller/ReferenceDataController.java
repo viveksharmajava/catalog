@@ -76,6 +76,37 @@ public class ReferenceDataController {
         ));
     }
 
+    /** OFBiz ProductPriceType seed (ProductSeedData.xml), ordered by description. */
+    @GetMapping("/price-types")
+    public ResponseEntity<List<Map<String, String>>> priceTypes() {
+        return ResponseEntity.ok(Arrays.asList(
+                option("AVERAGE_COST", "Average Cost"),
+                option("BOX_PRICE", "Box Price"),
+                option("COMPETITIVE_PRICE", "Competitive Price"),
+                option("DEFAULT_PRICE", "Default Price"),
+                option("LIST_PRICE", "List Price"),
+                option("MAXIMUM_PRICE", "Maximum Price"),
+                option("MINIMUM_ORDER_PRICE", "Minimum Order Price"),
+                option("MINIMUM_PRICE", "Minimum Price"),
+                option("PROMO_PRICE", "Promotional Price"),
+                option("SHIPPING_ALLOWANCE", "Shipping Allowance Price"),
+                option("SPECIAL_PROMO_PRICE", "Special Promo Price"),
+                option("WHOLESALE_PRICE", "Wholesale Price")
+        ));
+    }
+
+    /** OFBiz ProductPricePurpose seed (ProductSeedData.xml), ordered by description. */
+    @GetMapping("/price-purposes")
+    public ResponseEntity<List<Map<String, String>>> pricePurposes() {
+        return ResponseEntity.ok(Arrays.asList(
+                option("COMPONENT_PRICE", "Component Price"),
+                option("DEPOSIT", "Deposit price"),
+                option("PURCHASE", "Purchase/Initial"),
+                option("RECURRING_CHARGE", "Recurring Charge"),
+                option("USAGE_CHARGE", "Usage Charge")
+        ));
+    }
+
     private Map<String, String> toTypeOption(ProductType type) {
         Map<String, String> map = new HashMap<>();
         map.put("id", type.getProductTypeId());

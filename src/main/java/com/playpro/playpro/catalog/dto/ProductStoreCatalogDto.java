@@ -3,17 +3,23 @@ package com.playpro.playpro.catalog.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public class CategoryProdCatalogDto {
+public class ProductStoreCatalogDto {
 
+    private String productStoreId;
     private String prodCatalogId;
     private String catalogName;
-    private String productCategoryId;
-    private String categoryName;
-    private String prodCatalogCategoryTypeId;
-    private String prodCatalogCategoryTypeDescription;
+    private String storeName;
     private LocalDateTime fromDate;
     private LocalDateTime thruDate;
     private BigDecimal sequenceNum;
+
+    public String getProductStoreId() {
+        return productStoreId;
+    }
+
+    public void setProductStoreId(String productStoreId) {
+        this.productStoreId = productStoreId;
+    }
 
     public String getProdCatalogId() {
         return prodCatalogId;
@@ -31,36 +37,12 @@ public class CategoryProdCatalogDto {
         this.catalogName = catalogName;
     }
 
-    public String getProductCategoryId() {
-        return productCategoryId;
+    public String getStoreName() {
+        return storeName;
     }
 
-    public void setProductCategoryId(String productCategoryId) {
-        this.productCategoryId = productCategoryId;
-    }
-
-    public String getCategoryName() {
-        return categoryName;
-    }
-
-    public void setCategoryName(String categoryName) {
-        this.categoryName = categoryName;
-    }
-
-    public String getProdCatalogCategoryTypeId() {
-        return prodCatalogCategoryTypeId;
-    }
-
-    public void setProdCatalogCategoryTypeId(String prodCatalogCategoryTypeId) {
-        this.prodCatalogCategoryTypeId = prodCatalogCategoryTypeId;
-    }
-
-    public String getProdCatalogCategoryTypeDescription() {
-        return prodCatalogCategoryTypeDescription;
-    }
-
-    public void setProdCatalogCategoryTypeDescription(String prodCatalogCategoryTypeDescription) {
-        this.prodCatalogCategoryTypeDescription = prodCatalogCategoryTypeDescription;
+    public void setStoreName(String storeName) {
+        this.storeName = storeName;
     }
 
     public LocalDateTime getFromDate() {

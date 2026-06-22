@@ -9,4 +9,6 @@ import java.util.List;
 public interface ProdCatalogCategoryRepository extends JpaRepository<ProdCatalogCategory, ProdCatalogCategoryId> {
 
     List<ProdCatalogCategory> findByIdProductCategoryIdOrderBySequenceNumAsc(String productCategoryId);
+
+    List<ProdCatalogCategory> findByIdProdCatalogIdOrderBySequenceNumAsc(String prodCatalogId);
 }
