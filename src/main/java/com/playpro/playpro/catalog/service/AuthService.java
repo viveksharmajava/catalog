@@ -2,34 +2,52 @@ package com.playpro.playpro.catalog.service;
 
 import com.playpro.playpro.catalog.dto.LoginRequest;
 import com.playpro.playpro.catalog.dto.LoginResponse;
-import com.playpro.playpro.catalog.entity.admin.UserAccount;
-import com.playpro.playpro.catalog.repository.UserAccountRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
-import java.util.Collections;
-
+/**
+ * Delegates authentication to the party service, which validates user_login credentials
+ * and resolves admin UI roles from security-group permissions.
+ */
 @Service
 public class AuthService {
 
-    private final UserAccountRepository userAccountRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final RestTemplate restTemplate;
+    private final String partyBaseUrl;
 
-    public AuthService(UserAccountRepository userAccountRepository, PasswordEncoder passwordEncoder) {
-        this.userAccountRepository = userAccountRepository;
-        this.passwordEncoder = passwordEncoder;
+    public AuthService(RestTemplate restTemplate,
+                       @Value("${party.service.base-url:http://localhost:8082}") String partyBaseUrl) {
+        this.restTemplate = restTemplate;
+        this.partyBaseUrl = partyBaseUrl;
     }
 
     public LoginResponse login(LoginRequest request) {
-        UserAccount user = userAccountRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid username or password"));
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<LoginRequest> entity = new HttpEntity<>(request, headers);
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            ResponseEntity<LoginResponse> response = restTemplate.postForEntity(
+                    partyBaseUrl + "/party/auth/login",
+                    entity,
+                    LoginResponse.class);
+
+            LoginResponse body = response.getBody();
+            if (body == null) {
+                throw new IllegalArgumentException("Invalid username or password");
+            }
+            return body;
+        } catch (HttpStatusCodeException ex) {
             throw new IllegalArgumentException("Invalid username or password");
+        } catch (RestClientException ex) {
+            throw new IllegalStateException("Party authentication service is unavailable. Start the party service on port 8082.");
         }
-
-        String roleName = user.getRole() != null ? user.getRole().getName() : "VIEWER";
-        String authHeader = user.getUsername() + ":" + roleName;
-        return new LoginResponse(user.getUsername(), Collections.singletonList(roleName), authHeader);
     }
 }
