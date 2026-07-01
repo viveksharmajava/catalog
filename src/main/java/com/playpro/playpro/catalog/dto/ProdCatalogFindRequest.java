@@ -9,6 +9,8 @@ public class ProdCatalogFindRequest {
     private int size = 20;
     private String sortField = "catalogName";
     private String sortDirection = "asc";
+    /** When true, return only catalogs enabled for the eCart storefront. */
+    private Boolean cartEnabledOnly;
 
     public FieldSearchCriteria getProdCatalogId() {
         return prodCatalogId;
@@ -64,6 +66,14 @@ public class ProdCatalogFindRequest {
 
     public void setSortDirection(String sortDirection) {
         this.sortDirection = sortDirection;
+    }
+
+    public Boolean getCartEnabledOnly() {
+        return cartEnabledOnly;
+    }
+
+    public void setCartEnabledOnly(Boolean cartEnabledOnly) {
+        this.cartEnabledOnly = cartEnabledOnly;
     }
 
     public boolean hasFieldConditions() {

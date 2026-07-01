@@ -10,6 +10,7 @@ public class ProductStoreSummaryDto {
     private String subtitle;
     private String companyName;
     private String isDemoStore;
+    private boolean defaultStore;
 
     public String getProductStoreId() {
         return productStoreId;
@@ -57,5 +58,13 @@ public class ProductStoreSummaryDto {
 
     public void setIsDemoStore(String isDemoStore) {
         this.isDemoStore = isDemoStore;
+    }
+
+    public boolean isDefaultStore() {
+        return defaultStore;
+    }
+
+    public void setDefaultStore(boolean defaultStore) {
+        this.defaultStore = defaultStore;
     }
 }

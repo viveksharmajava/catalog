@@ -12,7 +12,9 @@ import com.playpro.playpro.catalog.mapper.ProductStoreMapper;
 import com.playpro.playpro.catalog.repository.ProdCatalogRepository;
 import com.playpro.playpro.catalog.repository.ProductStoreCatalogRepository;
 import com.playpro.playpro.catalog.repository.ProductStoreRepository;
+import com.playpro.playpro.catalog.repository.ProductStoreSettingRepository;
 import com.playpro.playpro.catalog.service.ProductStoreService;
+import com.playpro.playpro.catalog.service.ProductStoreSettingService;
 import com.playpro.playpro.catalog.util.ProductIdGenerator;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -32,20 +34,31 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private final ProductStoreRepository productStoreRepository;
     private final ProductStoreCatalogRepository productStoreCatalogRepository;
     private final ProdCatalogRepository prodCatalogRepository;
+    private final ProductStoreSettingRepository productStoreSettingRepository;
+    private final ProductStoreSettingService productStoreSettingService;
 
     public ProductStoreServiceImpl(ProductStoreRepository productStoreRepository,
                                    ProductStoreCatalogRepository productStoreCatalogRepository,
-                                   ProdCatalogRepository prodCatalogRepository) {
+                                   ProdCatalogRepository prodCatalogRepository,
+                                   ProductStoreSettingRepository productStoreSettingRepository,
+                                   ProductStoreSettingService productStoreSettingService) {
         this.productStoreRepository = productStoreRepository;
         this.productStoreCatalogRepository = productStoreCatalogRepository;
         this.prodCatalogRepository = prodCatalogRepository;
+        this.productStoreSettingRepository = productStoreSettingRepository;
+        this.productStoreSettingService = productStoreSettingService;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProductStoreSummaryDto> listStores() {
         return productStoreRepository.findAll(Sort.by(Sort.Direction.ASC, "storeName")).stream()
-                .map(ProductStoreMapper::toSummaryDto)
+                .map(store -> {
+                    ProductStoreSummaryDto dto = ProductStoreMapper.toSummaryDto(store);
+                    productStoreSettingRepository.findById(store.getProductStoreId())
+                            .ifPresent(setting -> dto.setDefaultStore("Y".equalsIgnoreCase(setting.getIsDefaultStore())));
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -71,7 +84,9 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         ProductStore entity = new ProductStore();
         entity.setProductStoreId(storeId);
         ProductStoreMapper.applyDtoToEntity(dto, entity);
-        return ProductStoreMapper.toDto(productStoreRepository.save(entity));
+        ProductStore saved = productStoreRepository.save(entity);
+        productStoreSettingService.initializeSettingsForNewStore(saved.getProductStoreId());
+        return ProductStoreMapper.toDto(saved);
     }
 
     @Override

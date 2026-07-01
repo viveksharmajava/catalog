@@ -9,6 +9,7 @@ import com.playpro.playpro.catalog.helper.ProductSearchSpecifications;
 import com.playpro.playpro.catalog.mapper.ProdCatalogMapper;
 import com.playpro.playpro.catalog.repository.ProdCatalogRepository;
 import com.playpro.playpro.catalog.service.ProdCatalogService;
+import com.playpro.playpro.catalog.util.IndicatorUtil;
 import com.playpro.playpro.catalog.util.ProductIdGenerator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -53,6 +54,9 @@ public class ProdCatalogServiceImpl implements ProdCatalogService {
         }
         entity.setProdCatalogId(catalogId);
         ProdCatalogMapper.applyDtoToEntity(dto, entity);
+        if (entity.getIsCartEnabled() == null) {
+            entity.setIsCartEnabled(IndicatorUtil.YES);
+        }
         return ProdCatalogMapper.toDto(prodCatalogRepository.save(entity));
     }
 
@@ -87,7 +91,8 @@ public class ProdCatalogServiceImpl implements ProdCatalogService {
 
         Specification<ProdCatalog> spec = ProductSearchSpecifications.combineAll(
                 ProductSearchSpecifications.fieldCriteria("prodCatalogId", request.getProdCatalogId()),
-                ProductSearchSpecifications.fieldCriteria("catalogName", request.getCatalogName())
+                ProductSearchSpecifications.fieldCriteria("catalogName", request.getCatalogName()),
+                cartEnabledSpec(request.getCartEnabledOnly())
         );
 
         int page = Math.max(request.getPage(), 0);
@@ -115,5 +120,12 @@ public class ProdCatalogServiceImpl implements ProdCatalogService {
         Sort.Direction direction = "desc".equalsIgnoreCase(sortDirection)
                 ? Sort.Direction.DESC : Sort.Direction.ASC;
         return Sort.by(direction, field);
+    }
+
+    private Specification<ProdCatalog> cartEnabledSpec(Boolean cartEnabledOnly) {
+        if (!Boolean.TRUE.equals(cartEnabledOnly)) {
+            return null;
+        }
+        return (root, query, cb) -> cb.equal(root.get("isCartEnabled"), IndicatorUtil.YES);
     }
 }

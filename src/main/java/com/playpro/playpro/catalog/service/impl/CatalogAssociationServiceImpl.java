@@ -174,7 +174,10 @@ public class CatalogAssociationServiceImpl implements CatalogAssociationService 
         prodCatalogRepository.findById(entity.getId().getProdCatalogId())
                 .ifPresent(c -> dto.setCatalogName(c.getCatalogName()));
         categoryRepository.findById(entity.getId().getProductCategoryId())
-                .ifPresent(c -> dto.setCategoryName(c.getCategoryName()));
+                .ifPresent(c -> {
+                    dto.setCategoryName(c.getCategoryName());
+                    dto.setCategoryImageUrl(c.getCategoryImageUrl());
+                });
         return dto;
     }
 

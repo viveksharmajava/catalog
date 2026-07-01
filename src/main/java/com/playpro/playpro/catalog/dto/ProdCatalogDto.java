@@ -11,6 +11,7 @@ public class ProdCatalogDto {
     private String templatePathPrefix;
     private String viewAllowPermReqd = "N";
     private String purchaseAllowPermReqd = "N";
+    private Boolean isCartEnabled = Boolean.TRUE;
 
     public String getProdCatalogId() {
         return prodCatalogId;
@@ -82,5 +83,13 @@ public class ProdCatalogDto {
 
     public void setPurchaseAllowPermReqd(String purchaseAllowPermReqd) {
         this.purchaseAllowPermReqd = purchaseAllowPermReqd;
+    }
+
+    public Boolean getIsCartEnabled() {
+        return isCartEnabled;
+    }
+
+    public void setIsCartEnabled(Boolean isCartEnabled) {
+        this.isCartEnabled = isCartEnabled;
     }
 }

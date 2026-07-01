@@ -21,6 +21,7 @@ public final class ProdCatalogMapper {
         dto.setTemplatePathPrefix(entity.getTemplatePathPrefix());
         dto.setViewAllowPermReqd(entity.getViewAllowPermReqd());
         dto.setPurchaseAllowPermReqd(entity.getPurchaseAllowPermReqd());
+        dto.setIsCartEnabled(IndicatorUtil.fromIndicator(entity.getIsCartEnabled()));
         return dto;
     }
 
@@ -29,6 +30,7 @@ public final class ProdCatalogMapper {
         dto.setProdCatalogId(entity.getProdCatalogId());
         dto.setCatalogName(entity.getCatalogName());
         dto.setUseQuickAdd(entity.getUseQuickAdd());
+        dto.setIsCartEnabled(IndicatorUtil.fromIndicator(entity.getIsCartEnabled()));
         return dto;
     }
 
@@ -48,6 +50,11 @@ public final class ProdCatalogMapper {
         }
         if (dto.getPurchaseAllowPermReqd() != null) {
             entity.setPurchaseAllowPermReqd(normalizeIndicator(dto.getPurchaseAllowPermReqd()));
+        }
+        if (dto.getIsCartEnabled() != null) {
+            entity.setIsCartEnabled(IndicatorUtil.toIndicator(dto.getIsCartEnabled()));
+        } else if (entity.getIsCartEnabled() == null) {
+            entity.setIsCartEnabled(IndicatorUtil.YES);
         }
     }
 

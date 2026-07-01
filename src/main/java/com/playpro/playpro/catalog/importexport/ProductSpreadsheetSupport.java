@@ -34,23 +34,22 @@ public final class ProductSpreadsheetSupport {
 
     public static List<ProductImportRow> readRows(InputStream inputStream) throws IOException {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
-            Sheet sheet = workbook.getSheet("Products");
-            if (sheet == null) {
-                sheet = workbook.getSheetAt(0);
-            }
-            if (sheet == null) {
-                return new ArrayList<>();
-            }
-
             DataFormatter formatter = new DataFormatter();
             FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
 
-            int headerRowIndex = findHeaderRowIndex(sheet, formatter, evaluator);
-            if (headerRowIndex < 0) {
+            Sheet sheet = resolveProductSheet(workbook, formatter, evaluator);
+            if (sheet == null) {
                 throw new IllegalArgumentException(
                         "Header row not found. Do not delete the first row of the template — it must contain "
                                 + "column names such as product_id, sku, and product_name. "
                                 + "Download a fresh template from Bulk Import and add your products from row 2 onward.");
+            }
+
+            int headerRowIndex = findHeaderRowIndex(sheet, formatter, evaluator);
+            if (headerRowIndex < 0) {
+                throw new IllegalArgumentException(
+                        "Header row not found on sheet '" + sheet.getSheetName() + "'. "
+                                + "Keep row 1 with column names such as product_id, sku, and product_name.");
             }
 
             Map<Integer, String> indexToHeader = buildHeaderMap(sheet.getRow(headerRowIndex), formatter, evaluator);
@@ -73,7 +72,7 @@ public final class ProductSpreadsheetSupport {
                     cells.put(entry.getValue(), readCellAsString(row.getCell(entry.getKey()), formatter, evaluator));
                 }
                 ProductImportRow importRow = ProductImportRow.fromCellMap(rowIndex + 1, cells);
-                if (!importRow.isBlank()) {
+                if (!importRow.isBlank() && !isTemplateSampleRow(cells)) {
                     rows.add(importRow);
                 }
             }
@@ -81,7 +80,51 @@ public final class ProductSpreadsheetSupport {
         }
     }
 
+    private static Sheet resolveProductSheet(Workbook workbook,
+                                             DataFormatter formatter,
+                                             FormulaEvaluator evaluator) {
+        Sheet named = findSheetIgnoreCase(workbook, "Products");
+        if (named != null && findHeaderRowIndex(named, formatter, evaluator) >= 0) {
+            return named;
+        }
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet candidate = workbook.getSheetAt(i);
+            if (isInstructionsSheet(candidate)) {
+                continue;
+            }
+            if (findHeaderRowIndex(candidate, formatter, evaluator) >= 0) {
+                return candidate;
+            }
+        }
+        return named;
+    }
+
+    private static Sheet findSheetIgnoreCase(Workbook workbook, String preferredName) {
+        Sheet sheet = workbook.getSheet(preferredName);
+        if (sheet != null) {
+            return sheet;
+        }
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet candidate = workbook.getSheetAt(i);
+            if (preferredName.equalsIgnoreCase(candidate.getSheetName())) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isInstructionsSheet(Sheet sheet) {
+        return sheet != null && "instructions".equalsIgnoreCase(sheet.getSheetName().trim());
+    }
+
+    private static boolean isTemplateSampleRow(Map<String, String> cells) {
+        String sku = cells.get("sku");
+        String productName = cells.get("product_name");
+        return "SKU-SAMPLE-001".equalsIgnoreCase(sku) && "Sample Product".equalsIgnoreCase(productName);
+    }
+
     private static int findHeaderRowIndex(Sheet sheet, DataFormatter formatter, FormulaEvaluator evaluator) {
+        java.util.Set<String> knownHeaders = new java.util.HashSet<>(ProductSpreadsheetColumns.headers());
         int scanLimit = Math.min(15, sheet.getLastRowNum());
         for (int rowIndex = 0; rowIndex <= scanLimit; rowIndex++) {
             Row row = sheet.getRow(rowIndex);
@@ -89,17 +132,20 @@ public final class ProductSpreadsheetSupport {
                 continue;
             }
             boolean hasProductName = false;
-            boolean hasSkuOrProductId = false;
-            for (Cell cell : row) {
-                String header = normalizeHeader(readCellAsString(cell, formatter, evaluator));
+            int knownMatches = 0;
+            for (int col = 0; col < row.getLastCellNum(); col++) {
+                String header = normalizeHeader(readCellAsString(row.getCell(col), formatter, evaluator));
+                if (header == null) {
+                    continue;
+                }
                 if ("product_name".equals(header)) {
                     hasProductName = true;
                 }
-                if ("product_id".equals(header) || "sku".equals(header)) {
-                    hasSkuOrProductId = true;
+                if (knownHeaders.contains(header) || ProductSpreadsheetColumns.isPriceTypeColumn(header)) {
+                    knownMatches++;
                 }
             }
-            if (hasProductName && hasSkuOrProductId) {
+            if (hasProductName && knownMatches >= 3) {
                 return rowIndex;
             }
         }
@@ -108,10 +154,13 @@ public final class ProductSpreadsheetSupport {
 
     private static Map<Integer, String> buildHeaderMap(Row headerRow, DataFormatter formatter, FormulaEvaluator evaluator) {
         Map<Integer, String> indexToHeader = new HashMap<>();
-        for (Cell cell : headerRow) {
-            String header = normalizeHeader(readCellAsString(cell, formatter, evaluator));
+        if (headerRow == null) {
+            return indexToHeader;
+        }
+        for (int col = 0; col < headerRow.getLastCellNum(); col++) {
+            String header = normalizeHeader(readCellAsString(headerRow.getCell(col), formatter, evaluator));
             if (header != null) {
-                indexToHeader.put(cell.getColumnIndex(), header);
+                indexToHeader.put(col, header);
             }
         }
         return indexToHeader;
@@ -129,29 +178,6 @@ public final class ProductSpreadsheetSupport {
 
     public static byte[] writeWorkbook(List<Map<String, String>> dataRows, boolean includeSampleRow) throws IOException {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            if (includeSampleRow) {
-                Sheet instructions = workbook.createSheet("Instructions");
-                String[] lines = {
-                        "Product Import Template",
-                        "",
-                        "1. Go to the 'Products' sheet.",
-                        "2. Do NOT delete or change row 1 (column headers).",
-                        "3. Enter each product on its own row starting from row 2.",
-                        "4. product_name is required. Use sku or product_id to update existing products.",
-                        "5. category_ids: comma-separated category IDs (first = primary category).",
-                        "6. Image columns (small_image, medium_image, large_image, original_image):",
-                        "   relative path format: product_id/image_type/file_name (e.g. PROD-001/small/hero.jpg)",
-                        "7. Pricing: currency, AVERAGE_COST (purchase price), average_cost_tax,",
-                        "   DEFAULT_PRICE, tax_rate (sale prices), then other price type columns.",
-                        "8. tax_in_price is calculated on import (sale = tax-inclusive, cost = exclusive).",
-                        "9. Price type column header = type ID; cell = amount.",
-                };
-                for (int i = 0; i < lines.length; i++) {
-                    instructions.createRow(i).createCell(0).setCellValue(lines[i]);
-                }
-                instructions.autoSizeColumn(0);
-            }
-
             Sheet sheet = workbook.createSheet("Products");
             List<String> headers = ProductSpreadsheetColumns.headers();
 
@@ -174,9 +200,27 @@ public final class ProductSpreadsheetSupport {
                 sheet.autoSizeColumn(i);
             }
 
-            workbook.setSheetOrder("Products", 0);
             if (includeSampleRow) {
-                workbook.setSheetOrder("Instructions", 1);
+                Sheet instructions = workbook.createSheet("Instructions");
+                String[] lines = {
+                        "Product Import Template",
+                        "",
+                        "1. Go to the 'Products' sheet.",
+                        "2. Do NOT delete or change row 1 (column headers).",
+                        "3. Enter each product on its own row starting from row 2.",
+                        "4. product_name is required. Use sku or product_id to update existing products.",
+                        "5. category_ids: comma-separated category IDs (first = primary category).",
+                        "6. Image columns (small_image, medium_image, large_image, original_image):",
+                        "   relative path format: product_id/image_type/file_name (e.g. PROD-001/small/hero.jpg)",
+                        "7. Pricing: currency, AVERAGE_COST (purchase price), average_cost_tax,",
+                        "   DEFAULT_PRICE, tax_rate (sale prices), then other price type columns.",
+                        "8. tax_in_price is calculated on import (sale = tax-inclusive, cost = exclusive).",
+                        "9. Price type column header = type ID; cell = amount.",
+                };
+                for (int i = 0; i < lines.length; i++) {
+                    instructions.createRow(i).createCell(0).setCellValue(lines[i]);
+                }
+                instructions.autoSizeColumn(0);
             }
 
             workbook.write(out);
@@ -386,7 +430,7 @@ public final class ProductSpreadsheetSupport {
         if (header == null) {
             return null;
         }
-        String trimmed = header.trim();
+        String trimmed = header.replace('\uFEFF', ' ').trim();
         if (trimmed.isEmpty()) {
             return null;
         }

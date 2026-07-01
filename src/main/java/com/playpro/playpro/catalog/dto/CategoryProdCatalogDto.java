@@ -9,6 +9,7 @@ public class CategoryProdCatalogDto {
     private String catalogName;
     private String productCategoryId;
     private String categoryName;
+    private String categoryImageUrl;
     private String prodCatalogCategoryTypeId;
     private String prodCatalogCategoryTypeDescription;
     private LocalDateTime fromDate;
@@ -45,6 +46,14 @@ public class CategoryProdCatalogDto {
 
     public void setCategoryName(String categoryName) {
         this.categoryName = categoryName;
+    }
+
+    public String getCategoryImageUrl() {
+        return categoryImageUrl;
+    }
+
+    public void setCategoryImageUrl(String categoryImageUrl) {
+        this.categoryImageUrl = categoryImageUrl;
     }
 
     public String getProdCatalogCategoryTypeId() {

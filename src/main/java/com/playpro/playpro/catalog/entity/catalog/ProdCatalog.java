@@ -37,6 +37,9 @@ public class ProdCatalog {
     @Column(name = "purchase_allow_perm_reqd", length = 1)
     private String purchaseAllowPermReqd = "N";
 
+    @Column(name = "is_cart_enabled", length = 1, nullable = false)
+    private String isCartEnabled = "Y";
+
     public String getProdCatalogId() {
         return prodCatalogId;
     }
@@ -107,5 +110,13 @@ public class ProdCatalog {
 
     public void setPurchaseAllowPermReqd(String purchaseAllowPermReqd) {
         this.purchaseAllowPermReqd = purchaseAllowPermReqd;
+    }
+
+    public String getIsCartEnabled() {
+        return isCartEnabled;
+    }
+
+    public void setIsCartEnabled(String isCartEnabled) {
+        this.isCartEnabled = isCartEnabled;
     }
 }

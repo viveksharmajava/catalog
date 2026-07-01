@@ -34,3 +34,9 @@ build/
 
 # Local product image uploads
 data/product-images/
+data/category-images/
+data/catalog-images/
+
+# Local H2 database files
+data/*.mv.db
+data/*.trace.db

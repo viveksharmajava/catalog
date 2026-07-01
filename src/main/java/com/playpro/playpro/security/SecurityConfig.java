@@ -28,6 +28,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.cors().and().csrf().disable()
+                .headers().frameOptions().sameOrigin().and()
                 .httpBasic().disable()
                 .formLogin().disable()
                 .logout().disable()
@@ -38,6 +39,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .authorizeRequests()
                 .antMatchers(HttpMethod.POST, "/catalog/auth/login").permitAll()
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .antMatchers("/h2-console/**").permitAll()
                 .antMatchers(HttpMethod.POST, "/catalog/products/find").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.POST, "/catalog/prod-catalogs/find").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.POST, "/catalog/categories/find").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
@@ -47,6 +49,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers(HttpMethod.GET, "/catalog/categories/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.GET, "/catalog/reference/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER", "VIEWER")
                 .antMatchers(HttpMethod.GET, "/catalog/product-images/**").permitAll()
+                .antMatchers(HttpMethod.GET, "/catalog/category-images/**").permitAll()
+                .antMatchers(HttpMethod.GET, "/catalog/catalog-images/**").permitAll()
+                .antMatchers(HttpMethod.GET, "/catalog/storefront/**").permitAll()
                 .antMatchers("/catalog/**").hasAnyAuthority("ADMIN", "CATALOG_MANAGER", "MERCHANDISER")
                 .anyRequest().denyAll();
     }
