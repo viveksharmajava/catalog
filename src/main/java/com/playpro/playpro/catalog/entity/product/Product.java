@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 public class Product extends AuditableEntity {
 
     @Id
-    @Column(name = "product_id", length = 20)
+    @Column(name = "product_id", length = 64)
     private String productId;
 
     @Column(name = "product_type_id", length = 20, nullable = false)

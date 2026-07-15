@@ -11,7 +11,7 @@ public class GoodIdentificationId implements Serializable {
     @Column(name = "good_identification_type_id", length = 20)
     private String goodIdentificationTypeId;
 
-    @Column(name = "product_id", length = 20)
+    @Column(name = "product_id", length = 64)
     private String productId;
 
     public GoodIdentificationId() {

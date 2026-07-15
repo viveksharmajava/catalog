@@ -8,7 +8,7 @@ import java.util.Objects;
 @Embeddable
 public class ProductKeywordId implements Serializable {
 
-    @Column(name = "product_id", length = 20)
+    @Column(name = "product_id", length = 64)
     private String productId;
 
     @Column(length = 60)

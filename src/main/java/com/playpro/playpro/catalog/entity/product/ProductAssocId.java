@@ -9,10 +9,10 @@ import java.util.Objects;
 @Embeddable
 public class ProductAssocId implements Serializable {
 
-    @Column(name = "product_id", length = 20)
+    @Column(name = "product_id", length = 64)
     private String productId;
 
-    @Column(name = "product_id_to", length = 20)
+    @Column(name = "product_id_to", length = 64)
     private String productIdTo;
 
     @Column(name = "product_assoc_type_id", length = 20)

@@ -12,7 +12,7 @@ public class ProductCategoryMemberId implements Serializable {
     @Column(name = "product_category_id", length = 20)
     private String productCategoryId;
 
-    @Column(name = "product_id", length = 20)
+    @Column(name = "product_id", length = 64)
     private String productId;
 
     @Column(name = "from_date")

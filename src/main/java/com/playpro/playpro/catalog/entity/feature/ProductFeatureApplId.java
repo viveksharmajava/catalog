@@ -9,7 +9,7 @@ import java.util.Objects;
 @Embeddable
 public class ProductFeatureApplId implements Serializable {
 
-    @Column(name = "product_id", length = 20)
+    @Column(name = "product_id", length = 64)
     private String productId;
 
     @Column(name = "product_feature_id", length = 20)

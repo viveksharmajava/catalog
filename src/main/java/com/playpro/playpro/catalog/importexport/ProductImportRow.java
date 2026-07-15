@@ -107,6 +107,12 @@ public class ProductImportRow {
         dto.setInternalName(trim(cells.get("internal_name")));
         dto.setBrandName(trim(cells.get("brand_name")));
         dto.setProductName(trim(cells.get("product_name")));
+        if (dto.getProductName() == null && dto.getInternalName() != null) {
+            dto.setProductName(dto.getInternalName());
+        }
+        if (dto.getInternalName() == null && dto.getProductName() != null) {
+            dto.setInternalName(dto.getProductName());
+        }
         dto.setDescription(trim(cells.get("description")));
         dto.setLongDescription(trim(cells.get("long_description")));
         dto.setComments(trim(cells.get("comments")));
