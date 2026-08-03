@@ -1,5 +1,6 @@
 package com.playpro.playpro.catalog.controller;
 
+import com.playpro.playpro.catalog.dto.ProductImageImportResultDto;
 import com.playpro.playpro.catalog.dto.ProductImageInfoDto;
 import com.playpro.playpro.catalog.productimage.ProductImageSize;
 import com.playpro.playpro.catalog.service.ProductImageService;
@@ -43,6 +44,14 @@ public class ProductImageController {
                         "Invalid image size. Allowed: small, medium, large, detail"));
         String principal = xUser == null ? "system" : xUser;
         return ResponseEntity.ok(productImageService.uploadImage(productId, imageSize, file, principal));
+    }
+
+    @PostMapping(value = "/products/images-import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ProductImageImportResultDto> importImagesZip(
+            @RequestHeader(value = "X-User", required = false) String xUser,
+            @RequestPart("file") MultipartFile file) {
+        String principal = xUser == null ? "system" : xUser;
+        return ResponseEntity.ok(productImageService.importImagesZip(file, principal));
     }
 
     @GetMapping("/product-images/{productId}/{fileName}")

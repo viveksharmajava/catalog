@@ -1,5 +1,6 @@
 package com.playpro.playpro.catalog.service;
 
+import com.playpro.playpro.catalog.dto.ProductImageImportResultDto;
 import com.playpro.playpro.catalog.dto.ProductImageInfoDto;
 import com.playpro.playpro.catalog.productimage.ProductImageSize;
 import org.springframework.core.io.Resource;
@@ -12,6 +13,8 @@ public interface ProductImageService {
     List<ProductImageInfoDto> listImages(String productId);
 
     ProductImageInfoDto uploadImage(String productId, ProductImageSize size, MultipartFile file, String principal);
+
+    ProductImageImportResultDto importImagesZip(MultipartFile zipFile, String principal);
 
     Resource loadImageFile(String productId, String fileName);
 }

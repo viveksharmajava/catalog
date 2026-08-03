@@ -35,6 +35,9 @@ public enum ProductImageSize {
             return Optional.empty();
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
+        if ("original".equals(normalized)) {
+            return Optional.of(DETAIL);
+        }
         return Arrays.stream(values())
                 .filter(size -> size.pathSegment.equals(normalized))
                 .findFirst();
