@@ -9,6 +9,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -42,10 +43,19 @@ public class PricingServiceClient {
     }
 
     public void createPrice(String productId, ProductPriceClientDto dto, String xUser) {
-        restTemplate.postForEntity(
-                pricingBaseUrl + "/pricing/products/" + productId + "/prices",
-                new HttpEntity<>(dto, headers(xUser)),
-                ProductPriceClientDto.class);
+        try {
+            restTemplate.postForEntity(
+                    pricingBaseUrl + "/pricing/products/" + productId + "/prices",
+                    new HttpEntity<>(dto, headers(xUser)),
+                    ProductPriceClientDto.class);
+        } catch (HttpStatusCodeException ex) {
+            String body = ex.getResponseBodyAsString();
+            String detail = body != null && !body.trim().isEmpty() ? body : ex.getStatusText();
+            throw new IllegalStateException(
+                    "Pricing service failed for product " + productId + ": "
+                            + ex.getRawStatusCode() + " " + detail,
+                    ex);
+        }
     }
 
     private HttpHeaders headers(String xUser) {

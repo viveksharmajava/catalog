@@ -23,6 +23,8 @@ public final class CategorySpreadsheetSupport {
             "4. category_name is required. Use category_id to update an existing category.",
             "5. parent_category_id links the category under a parent in the rollup tree.",
             "6. show_in_select accepts Y or N.",
+            "7. catalog_id (optional) maps the category to a product catalog (prod_catalog_id).",
+            "   Use a single catalog id, or comma-separated ids for multiple catalogs.",
     };
 
     private CategorySpreadsheetSupport() {
@@ -72,6 +74,7 @@ public final class CategorySpreadsheetSupport {
         sample.put("long_description", "Long description for sample category");
         sample.put("category_image_url", "");
         sample.put("show_in_select", "Y");
+        sample.put("catalog_id", "");
         return sample;
     }
 }

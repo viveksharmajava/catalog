@@ -16,7 +16,8 @@ public final class CategorySpreadsheetColumns {
             "description",
             "long_description",
             "category_image_url",
-            "show_in_select"
+            "show_in_select",
+            "catalog_id"
     ));
 
     private CategorySpreadsheetColumns() {

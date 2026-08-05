@@ -3,12 +3,17 @@ package com.playpro.playpro.catalog.importexport;
 import com.playpro.playpro.catalog.dto.ProductCategoryDto;
 import com.playpro.playpro.catalog.util.IndicatorUtil;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 public class CategoryImportRow {
 
     private int rowNumber;
     private ProductCategoryDto category = new ProductCategoryDto();
+    /** Optional catalog id(s) to associate after category create/update. */
+    private String catalogId;
 
     public int getRowNumber() {
         return rowNumber;
@@ -26,8 +31,35 @@ public class CategoryImportRow {
         this.category = category;
     }
 
+    public String getCatalogId() {
+        return catalogId;
+    }
+
+    public void setCatalogId(String catalogId) {
+        this.catalogId = catalogId;
+    }
+
+    public List<String> resolveCatalogIds() {
+        if (catalogId == null || catalogId.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> ids = new ArrayList<>();
+        for (String part : catalogId.split("[,;]")) {
+            if (part == null) {
+                continue;
+            }
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty() && !ids.contains(trimmed)) {
+                ids.add(trimmed);
+            }
+        }
+        return ids;
+    }
+
     public boolean isBlank() {
-        return isBlank(category.getProductCategoryId()) && isBlank(category.getCategoryName());
+        return isBlank(category.getProductCategoryId())
+                && isBlank(category.getCategoryName())
+                && isBlank(catalogId);
     }
 
     private boolean isBlank(String value) {
@@ -51,10 +83,21 @@ public class CategoryImportRow {
         dto.setLongDescription(trim(cells.get("long_description")));
         dto.setCategoryImageUrl(trim(cells.get("category_image_url")));
         dto.setShowInSelect(parseYn(cells.get("show_in_select")));
+
+        // Accept catalog_id / CATALOG_ID (normalized) and prod_catalog_id alias
+        String catalogId = firstNonBlank(
+                trim(cells.get("catalog_id")),
+                trim(cells.get("prod_catalog_id"))
+        );
+        row.setCatalogId(catalogId);
         return row;
     }
 
     public static Map<String, String> toCellMap(ProductCategoryDto dto) {
+        return toCellMap(dto, null);
+    }
+
+    public static Map<String, String> toCellMap(ProductCategoryDto dto, String catalogId) {
         Map<String, String> cells = new java.util.LinkedHashMap<>();
         SpreadsheetIO.put(cells, "category_id", dto.getProductCategoryId());
         SpreadsheetIO.put(cells, "category_type_id", dto.getProductCategoryTypeId());
@@ -66,7 +109,18 @@ public class CategoryImportRow {
         if (dto.getShowInSelect() != null) {
             SpreadsheetIO.put(cells, "show_in_select", IndicatorUtil.toIndicator(dto.getShowInSelect()));
         }
+        SpreadsheetIO.put(cells, "catalog_id", catalogId);
         return cells;
+    }
+
+    private static String firstNonBlank(String first, String second) {
+        if (first != null && !first.trim().isEmpty()) {
+            return first;
+        }
+        if (second != null && !second.trim().isEmpty()) {
+            return second;
+        }
+        return null;
     }
 
     private static String trim(String value) {
