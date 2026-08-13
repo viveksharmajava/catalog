@@ -30,6 +30,7 @@ public final class ProdCatalogMapper {
         dto.setProdCatalogId(entity.getProdCatalogId());
         dto.setCatalogName(entity.getCatalogName());
         dto.setUseQuickAdd(entity.getUseQuickAdd());
+        dto.setHeaderLogo(entity.getHeaderLogo());
         dto.setIsCartEnabled(IndicatorUtil.fromIndicator(entity.getIsCartEnabled()));
         return dto;
     }

@@ -179,6 +179,7 @@ public class CategoryAssociationServiceImpl implements CategoryAssociationServic
         CategoryProductMemberDto result = toMemberDto(member);
         result.setProductName(product.getProductName());
         result.setInternalName(product.getInternalName());
+        result.setBrandName(product.getBrandName());
         return result;
     }
 
@@ -294,6 +295,7 @@ public class CategoryAssociationServiceImpl implements CategoryAssociationServic
         productRepository.findById(member.getId().getProductId()).ifPresent(p -> {
             dto.setProductName(p.getProductName());
             dto.setInternalName(p.getInternalName());
+            dto.setBrandName(p.getBrandName());
         });
         return dto;
     }

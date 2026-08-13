@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "catalog.media")
 public class MediaImageProperties {
 
-    private String publicBaseUrl = "http://localhost:8080";
+    private String publicBaseUrl = "http://localhost:8085";
     private String categoryStoragePath = "data/category-images";
     private String catalogStoragePath = "data/catalog-images";
 

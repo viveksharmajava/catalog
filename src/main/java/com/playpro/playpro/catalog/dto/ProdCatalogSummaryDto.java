@@ -5,6 +5,7 @@ public class ProdCatalogSummaryDto {
     private String prodCatalogId;
     private String catalogName;
     private String useQuickAdd;
+    private String headerLogo;
     private Boolean isCartEnabled;
 
     public String getProdCatalogId() {
@@ -29,6 +30,14 @@ public class ProdCatalogSummaryDto {
 
     public void setUseQuickAdd(String useQuickAdd) {
         this.useQuickAdd = useQuickAdd;
+    }
+
+    public String getHeaderLogo() {
+        return headerLogo;
+    }
+
+    public void setHeaderLogo(String headerLogo) {
+        this.headerLogo = headerLogo;
     }
 
     public Boolean getIsCartEnabled() {

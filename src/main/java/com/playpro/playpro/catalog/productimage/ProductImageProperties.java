@@ -15,7 +15,7 @@ public class ProductImageProperties {
     /**
      * Public base URL returned in product image fields for other services (no trailing slash).
      */
-    private String publicBaseUrl = "http://localhost:8080";
+    private String publicBaseUrl = "http://localhost:8085";
 
     public String getStoragePath() {
         return storagePath;

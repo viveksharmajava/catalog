@@ -9,6 +9,7 @@ public class CategoryProductMemberDto {
     private String productId;
     private String productName;
     private String internalName;
+    private String brandName;
     private LocalDateTime fromDate;
     private LocalDateTime thruDate;
     private BigDecimal sequenceNum;
@@ -45,6 +46,14 @@ public class CategoryProductMemberDto {
 
     public void setInternalName(String internalName) {
         this.internalName = internalName;
+    }
+
+    public String getBrandName() {
+        return brandName;
+    }
+
+    public void setBrandName(String brandName) {
+        this.brandName = brandName;
     }
 
     public LocalDateTime getFromDate() {
