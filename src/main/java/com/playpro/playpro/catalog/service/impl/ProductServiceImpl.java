@@ -165,10 +165,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public List<ProductDto> getVariants(String virtualProductId) {
-        Product virtual = loadProductWithType(virtualProductId);
-        if (!productWorker.isVirtual(virtual)) {
-            throw new IllegalArgumentException("Product is not a virtual product: " + virtualProductId);
-        }
+        loadProductWithType(virtualProductId);
         LocalDateTime now = LocalDateTime.now();
         return assocRepository.findActiveAssocsFrom(virtualProductId, ProductWorker.ASSOC_VARIANT, now).stream()
                 .map(a -> getProduct(a.getId().getProductIdTo()))
@@ -248,13 +245,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public void associateVariant(String virtualProductId, String variantProductId, String principal) {
-        Product virtual = loadProductWithType(virtualProductId);
+        loadProductWithType(virtualProductId);
         Product variant = loadProductWithType(variantProductId);
-        if (!productWorker.isVirtual(virtual)) {
-            throw new IllegalArgumentException("Source product must be virtual");
-        }
         if (!productWorker.isVariant(variant)) {
-            throw new IllegalArgumentException("Target product must be a variant");
+            variant.setIsVariant("Y");
+            productRepository.save(variant);
         }
         LocalDateTime now = LocalDateTime.now();
         ProductAssocId assocId = new ProductAssocId(virtualProductId, variantProductId, ProductWorker.ASSOC_VARIANT, now);
