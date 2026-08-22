@@ -35,7 +35,9 @@ jobs:
 
       # 5. Build the Spring Boot executable package
       - name: Build Application Jar
-        run: ./mvnw clean package -DskipTests
+        run: |
+         chmod +x mvnw
+        ./mvnw clean package -DskipTests
 
       # 6. Build the container image and upload it straight to Google Cloud
       - name: Build and Push Docker Image
