@@ -43,5 +43,6 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           docker build -t asia-south1-docker.pkg.dev/project-3e935033-4ac7-4904-bad/ecommerce-apps/catalog-service:latest .
-          docker push asia-south1-docker.pkg.dev/$project-3e935033-4ac7-4904-bad/ecommerce-apps/catalog-service:latest
+          docker push asia-south1-docker.pkg.dev/project-3e935033-4ac7-4904-bad/ecommerce-apps/catalog-service:latest
+
 
