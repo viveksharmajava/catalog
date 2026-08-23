@@ -23,7 +23,7 @@ jobs:
       # 3. Configure Docker to safely talk to your specific Artifact Registry region
       - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev
+          gcloud auth configure-docker asia-south1-docker.pkg.dev
 
       # 4. Set up Java Environment on the GitHub Runner
       - name: Set up JDK 17
