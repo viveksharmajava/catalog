@@ -13,6 +13,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
@@ -59,7 +60,19 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+        if (origins.isEmpty()) {
+            // Prod often leaves CORS_ALLOWED_ORIGINS unset; catalog-admin nginx proxies
+            // still forward Origin unless stripped. Allow local + Cloud Run frontends.
+            config.setAllowedOriginPatterns(Arrays.asList(
+                    "http://localhost:*",
+                    "https://*.run.app"));
+        } else {
+            config.setAllowedOrigins(origins);
+        }
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setExposedHeaders(Arrays.asList("X-User"));
