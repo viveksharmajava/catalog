@@ -8,15 +8,15 @@ SPRING_PROFILES_ACTIVE=prod
 
 Cloud Run also injects `PORT` (usually `8080`); the prod stubs bind `server.port=${PORT:8080}`.
 
-## Deployed backend URLs (asia-south1)
+## Deployed backend URLs (asia-southeast1)
 
 | Service | Cloud Run URL |
 |---------|----------------|
-| pricing | `https://pricing-1089274910156.asia-south1.run.app` |
-| catalog | `https://catalog-1089274910156.asia-south1.run.app` |
-| party | `https://party-service-1089274910156.asia-south1.run.app` |
-| orders | `https://orders-service-1089274910156.asia-south1.run.app` |
-| facility | `https://facility-service-1089274910156.asia-south1.run.app` |
+| pricing | `https://pricing-1089274910156.asia-southeast1.run.app` |
+| catalog-service | `https://catalog-service-1089274910156.asia-southeast1.run.app` |
+| party | `https://party-service-1089274910156.asia-southeast1.run.app` |
+| orders | `https://orders-service-1089274910156.asia-southeast1.run.app` |
+| facility | `https://facility-service-1089274910156.asia-southeast1.run.app` |
 
 These are the defaults in each `application-prod.properties`. Override with env vars only if a URL changes.
 
@@ -72,8 +72,8 @@ Optional overrides:
 Example `gcloud` (repeat for catalog, orders, party, pricing, facility):
 
 ```bash
-gcloud run services update catalog \
-  --region=asia-south1 \
+gcloud run services update catalog-service \
+  --region=asia-southeast1 \
   --add-cloudsql-instances=project-3e935033-4ac7-4904-bad:asia-south1:playpro \
   --set-env-vars=SPRING_PROFILES_ACTIVE=prod,MYSQL_USER=playpro_user,MYSQL_DATABASE=playdb \
   --set-secrets=MYSQL_PASSWORD=mysql-playpro-password:latest
@@ -91,23 +91,23 @@ Set this after the UI services are deployed (required for browser calls).
 
 | Env var | Default / example |
 |---------|-------------------|
-| `CATALOG_PUBLIC_BASE_URL` | `https://catalog-1089274910156.asia-south1.run.app` |
-| `PARTY_SERVICE_BASE_URL` | `https://party-service-1089274910156.asia-south1.run.app` |
-| `PRICING_SERVICE_BASE_URL` | `https://pricing-1089274910156.asia-south1.run.app` |
+| `CATALOG_PUBLIC_BASE_URL` | `https://catalog-service-1089274910156.asia-southeast1.run.app` |
+| `PARTY_SERVICE_BASE_URL` | `https://party-service-1089274910156.asia-southeast1.run.app` |
+| `PRICING_SERVICE_BASE_URL` | `https://pricing-1089274910156.asia-southeast1.run.app` |
 | `CORS_ALLOWED_ORIGINS` | (see shared) |
 
 ## orders
 
 | Env var | Default / example |
 |---------|-------------------|
-| `FACILITY_SERVICE_BASE_URL` | `https://facility-service-1089274910156.asia-south1.run.app` |
+| `FACILITY_SERVICE_BASE_URL` | `https://facility-service-1089274910156.asia-southeast1.run.app` |
 | `CORS_ALLOWED_ORIGINS` | (see shared) |
 
 ## facility
 
 | Env var | Default / example |
 |---------|-------------------|
-| `ORDERS_SERVICE_BASE_URL` | `https://orders-service-1089274910156.asia-south1.run.app` |
+| `ORDERS_SERVICE_BASE_URL` | `https://orders-service-1089274910156.asia-southeast1.run.app` |
 | `CORS_ALLOWED_ORIGINS` | (see shared) |
 
 ## party
@@ -135,11 +135,11 @@ Set this after the UI services are deployed (required for browser calls).
 
 **ecart** (Cloud Run / env):
 
-- `CATALOG_API_BASE` / `CATALOG_PROXY_TARGET` = `https://catalog-1089274910156.asia-south1.run.app`
-- `PRICING_API_BASE` / `PRICING_PROXY_TARGET` = `https://pricing-1089274910156.asia-south1.run.app`
-- `PARTY_API_BASE` / `PARTY_PROXY_TARGET` = `https://party-service-1089274910156.asia-south1.run.app`
-- `ORDERS_API_BASE` / `ORDERS_PROXY_TARGET` = `https://orders-service-1089274910156.asia-south1.run.app`
-- `FACILITY_API_BASE` / `FACILITY_PROXY_TARGET` = `https://facility-service-1089274910156.asia-south1.run.app`
+- `CATALOG_API_BASE` / `CATALOG_PROXY_TARGET` = `https://catalog-service-1089274910156.asia-southeast1.run.app`
+- `PRICING_API_BASE` / `PRICING_PROXY_TARGET` = `https://pricing-1089274910156.asia-southeast1.run.app`
+- `PARTY_API_BASE` / `PARTY_PROXY_TARGET` = `https://party-service-1089274910156.asia-southeast1.run.app`
+- `ORDERS_API_BASE` / `ORDERS_PROXY_TARGET` = `https://orders-service-1089274910156.asia-southeast1.run.app`
+- `FACILITY_API_BASE` / `FACILITY_PROXY_TARGET` = `https://facility-service-1089274910156.asia-southeast1.run.app`
 - `NEXT_PUBLIC_CATALOG_IMAGE_BASE` = catalog URL above
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` = same as `GOOGLE_CLIENT_ID`
 
