@@ -9,12 +9,15 @@ import com.playpro.playpro.catalog.entity.category.ProductCategory;
 import com.playpro.playpro.catalog.importexport.CategoryImportRow;
 import com.playpro.playpro.catalog.importexport.CategorySpreadsheetSupport;
 import com.playpro.playpro.catalog.repository.ProdCatalogCategoryRepository;
+import com.playpro.playpro.catalog.repository.ProdCatalogRepository;
 import com.playpro.playpro.catalog.repository.ProductCategoryRepository;
 import com.playpro.playpro.catalog.service.CategoryAssociationService;
 import com.playpro.playpro.catalog.service.CategoryImportExportService;
 import com.playpro.playpro.catalog.service.CategoryService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -26,19 +29,27 @@ import java.util.stream.Collectors;
 @Service
 public class CategoryImportExportServiceImpl implements CategoryImportExportService {
 
+    private static final String DEFAULT_CATALOG_CATEGORY_TYPE = "PCCT_BROWSE_ROOT";
+
     private final CategoryService categoryService;
     private final CategoryAssociationService categoryAssociationService;
     private final ProductCategoryRepository categoryRepository;
     private final ProdCatalogCategoryRepository prodCatalogCategoryRepository;
+    private final ProdCatalogRepository prodCatalogRepository;
+    private final TransactionTemplate transactionTemplate;
 
     public CategoryImportExportServiceImpl(CategoryService categoryService,
                                            CategoryAssociationService categoryAssociationService,
                                            ProductCategoryRepository categoryRepository,
-                                           ProdCatalogCategoryRepository prodCatalogCategoryRepository) {
+                                           ProdCatalogCategoryRepository prodCatalogCategoryRepository,
+                                           ProdCatalogRepository prodCatalogRepository,
+                                           PlatformTransactionManager transactionManager) {
         this.categoryService = categoryService;
         this.categoryAssociationService = categoryAssociationService;
         this.categoryRepository = categoryRepository;
         this.prodCatalogCategoryRepository = prodCatalogCategoryRepository;
+        this.prodCatalogRepository = prodCatalogRepository;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @Override
@@ -73,7 +84,8 @@ public class CategoryImportExportServiceImpl implements CategoryImportExportServ
         if (rows.isEmpty()) {
             throw new IllegalArgumentException(
                     "No category data rows found. Keep the header row unchanged and enter categories from row 2. "
-                            + "Each row needs at least category_name (and category_id for updates).");
+                            + "Each row needs at least category_name (and category_id for updates). "
+                            + "Optional catalog_id links the category to an existing product catalog.");
         }
 
         ProductImportResultDto result = new ProductImportResultDto();
@@ -81,7 +93,14 @@ public class CategoryImportExportServiceImpl implements CategoryImportExportServ
 
         for (CategoryImportRow row : rows) {
             try {
-                boolean created = importRow(row, principal);
+                boolean created = Boolean.TRUE.equals(transactionTemplate.execute(status -> {
+                    try {
+                        return importRow(row, principal);
+                    } catch (RuntimeException ex) {
+                        status.setRollbackOnly();
+                        throw ex;
+                    }
+                }));
                 if (created) {
                     result.setCreated(result.getCreated() + 1);
                 } else {
@@ -105,6 +124,9 @@ public class CategoryImportExportServiceImpl implements CategoryImportExportServ
             throw new IllegalArgumentException("category_name is required");
         }
 
+        List<String> catalogIds = row.resolveCatalogIds();
+        validateCatalogIds(catalogIds);
+
         String categoryId = category.getProductCategoryId();
         boolean created;
         ProductCategoryDto saved;
@@ -117,8 +139,29 @@ public class CategoryImportExportServiceImpl implements CategoryImportExportServ
             created = true;
         }
 
-        linkCatalogs(saved.getProductCategoryId(), row.resolveCatalogIds());
+        linkCatalogs(saved.getProductCategoryId(), catalogIds);
         return created;
+    }
+
+    /**
+     * Ensures every non-blank catalog_id refers to an existing prod_catalog row.
+     * Invalid ids fail the row (and roll back create/update) so mappings stay consistent.
+     */
+    private void validateCatalogIds(List<String> catalogIds) {
+        if (catalogIds == null || catalogIds.isEmpty()) {
+            return;
+        }
+        List<String> missing = new ArrayList<>();
+        for (String catalogId : catalogIds) {
+            if (!prodCatalogRepository.existsById(catalogId)) {
+                missing.add(catalogId);
+            }
+        }
+        if (!missing.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Unknown catalog_id (must match an existing prod_catalog_id): "
+                            + String.join(", ", missing));
+        }
     }
 
     private void linkCatalogs(String categoryId, List<String> catalogIds) {
@@ -138,7 +181,7 @@ public class CategoryImportExportServiceImpl implements CategoryImportExportServ
             CategoryProdCatalogDto association = new CategoryProdCatalogDto();
             association.setProdCatalogId(catalogId);
             association.setProductCategoryId(categoryId);
-            association.setProdCatalogCategoryTypeId("PCCT_BROWSE_ROOT");
+            association.setProdCatalogCategoryTypeId(DEFAULT_CATALOG_CATEGORY_TYPE);
             categoryAssociationService.addProdCatalog(categoryId, association);
         }
     }

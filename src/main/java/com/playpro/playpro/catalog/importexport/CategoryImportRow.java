@@ -84,9 +84,10 @@ public class CategoryImportRow {
         dto.setCategoryImageUrl(trim(cells.get("category_image_url")));
         dto.setShowInSelect(parseYn(cells.get("show_in_select")));
 
-        // Accept catalog_id / CATALOG_ID (normalized) and prod_catalog_id alias
+        // Accept catalog_id / CATALOG_ID (normalized), catalog_ids, and prod_catalog_id aliases
         String catalogId = firstNonBlank(
                 trim(cells.get("catalog_id")),
+                trim(cells.get("catalog_ids")),
                 trim(cells.get("prod_catalog_id"))
         );
         row.setCatalogId(catalogId);
@@ -113,12 +114,14 @@ public class CategoryImportRow {
         return cells;
     }
 
-    private static String firstNonBlank(String first, String second) {
-        if (first != null && !first.trim().isEmpty()) {
-            return first;
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
         }
-        if (second != null && !second.trim().isEmpty()) {
-            return second;
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value;
+            }
         }
         return null;
     }
