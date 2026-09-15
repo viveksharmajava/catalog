@@ -4,22 +4,18 @@ import com.playpro.playpro.catalog.dto.EntityImageInfoDto;
 import com.playpro.playpro.catalog.entity.category.ProductCategory;
 import com.playpro.playpro.catalog.exception.ResourceNotFoundException;
 import com.playpro.playpro.catalog.media.ImageFileSupport;
-import com.playpro.playpro.catalog.media.MediaImageProperties;
 import com.playpro.playpro.catalog.repository.ProductCategoryRepository;
 import com.playpro.playpro.catalog.service.CategoryImageService;
-import org.springframework.core.io.FileSystemResource;
+import com.playpro.playpro.catalog.storage.ImageFolders;
+import com.playpro.playpro.catalog.storage.ImageObjectStore;
+import com.playpro.playpro.catalog.storage.StoredImageObject;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Locale;
-import java.util.stream.Stream;
 
 @Service
 @Transactional
@@ -28,29 +24,27 @@ public class CategoryImageServiceImpl implements CategoryImageService {
     private static final String IMAGE_PREFIX = "image.";
 
     private final ProductCategoryRepository categoryRepository;
-    private final MediaImageProperties properties;
-    private Path storageRoot;
+    private final ImageObjectStore imageObjectStore;
 
     public CategoryImageServiceImpl(ProductCategoryRepository categoryRepository,
-                                    MediaImageProperties properties) {
+                                    ImageObjectStore imageObjectStore) {
         this.categoryRepository = categoryRepository;
-        this.properties = properties;
-    }
-
-    @PostConstruct
-    public void initStorage() throws IOException {
-        storageRoot = Paths.get(properties.getCategoryStoragePath()).toAbsolutePath().normalize();
-        Files.createDirectories(storageRoot);
+        this.imageObjectStore = imageObjectStore;
     }
 
     @Override
     @Transactional(readOnly = true)
     public EntityImageInfoDto getImageInfo(String categoryId) {
         ProductCategory category = loadCategory(categoryId);
-        Path categoryDir = storageRoot.resolve(ImageFileSupport.sanitizeEntityId(categoryId));
-        String fileName = findExistingFileName(categoryDir).orElse(null);
-        Path filePath = fileName != null ? categoryDir.resolve(fileName) : null;
-        return buildImageInfo(category, fileName, filePath);
+        String url = category.getCategoryImageUrl();
+        boolean uploaded = StringUtils.hasText(url);
+        String fileName = null;
+        if (uploaded && imageObjectStore.servesViaCatalogApi()) {
+            fileName = imageObjectStore.findFileName(ImageFolders.CATEGORY, categoryId, IMAGE_PREFIX).orElse(null);
+        } else if (uploaded) {
+            fileName = extractFileName(url);
+        }
+        return buildImageInfo(url, fileName, uploaded, categoryId);
     }
 
     @Override
@@ -62,41 +56,32 @@ public class CategoryImageServiceImpl implements CategoryImageService {
         ProductCategory category = loadCategory(categoryId);
         String extension = ImageFileSupport.resolveExtension(file);
         String fileName = IMAGE_PREFIX + extension;
-        Path categoryDir = storageRoot.resolve(ImageFileSupport.sanitizeEntityId(categoryId));
-        Path target = categoryDir.resolve(fileName);
-
+        byte[] content;
         try {
-            Files.createDirectories(categoryDir);
-            deleteExistingImages(categoryDir);
-            file.transferTo(target.toFile());
+            content = file.getBytes();
         } catch (IOException ex) {
-            throw new IllegalStateException("Failed to store category image", ex);
+            throw new IllegalStateException("Failed to read category image", ex);
         }
 
-        String publicUrl = ImageFileSupport.buildPublicUrl(
-                properties.getPublicBaseUrl(), "category-images", categoryId, fileName);
-        category.setCategoryImageUrl(publicUrl);
+        StoredImageObject stored = imageObjectStore.store(
+                ImageFolders.CATEGORY,
+                categoryId,
+                fileName,
+                IMAGE_PREFIX,
+                content,
+                ImageFileSupport.resolveMediaType(fileName).toString());
+
+        category.setCategoryImageUrl(stored.getPublicUrl());
         category.applyAuditOnUpdate(principal);
         categoryRepository.save(category);
 
-        return buildImageInfo(category, fileName, target);
+        return buildImageInfo(stored.getPublicUrl(), stored.getFileName(), true, categoryId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Resource loadImageFile(String categoryId, String fileName) {
-        ImageFileSupport.validateFileName(fileName);
-        Path filePath = storageRoot
-                .resolve(ImageFileSupport.sanitizeEntityId(categoryId))
-                .resolve(fileName)
-                .normalize();
-        if (!filePath.startsWith(storageRoot)) {
-            throw new IllegalArgumentException("Invalid image path");
-        }
-        if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
-            throw new ResourceNotFoundException("Category image not found: " + fileName);
-        }
-        return new FileSystemResource(filePath);
+        return imageObjectStore.load(ImageFolders.CATEGORY, categoryId, fileName);
     }
 
     private ProductCategory loadCategory(String categoryId) {
@@ -104,43 +89,20 @@ public class CategoryImageServiceImpl implements CategoryImageService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
     }
 
-    private EntityImageInfoDto buildImageInfo(ProductCategory category, String fileName, Path filePath) {
+    private EntityImageInfoDto buildImageInfo(String url, String fileName, boolean uploaded, String categoryId) {
         EntityImageInfoDto dto = new EntityImageInfoDto();
-        dto.setUrl(category.getCategoryImageUrl());
-        if (filePath != null && Files.exists(filePath)) {
-            dto.setFileName(fileName);
-            dto.setStoragePath(storageRoot.relativize(filePath).toString().replace('\\', '/'));
-            dto.setUploaded(true);
-        } else {
-            dto.setUploaded(category.getCategoryImageUrl() != null && !category.getCategoryImageUrl().trim().isEmpty());
+        dto.setUrl(url);
+        dto.setFileName(fileName);
+        dto.setUploaded(uploaded);
+        if (uploaded && StringUtils.hasText(fileName)) {
+            dto.setStoragePath(ImageFolders.CATEGORY + "/"
+                    + ImageFileSupport.sanitizeEntityId(categoryId) + "/" + fileName);
         }
         return dto;
     }
 
-    private java.util.Optional<String> findExistingFileName(Path categoryDir) {
-        if (!Files.exists(categoryDir)) {
-            return java.util.Optional.empty();
-        }
-        try (Stream<Path> paths = Files.list(categoryDir)) {
-            return paths.filter(Files::isRegularFile)
-                    .map(path -> path.getFileName().toString())
-                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(IMAGE_PREFIX))
-                    .findFirst();
-        } catch (IOException ex) {
-            return java.util.Optional.empty();
-        }
-    }
-
-    private void deleteExistingImages(Path categoryDir) throws IOException {
-        if (!Files.exists(categoryDir)) {
-            return;
-        }
-        try (Stream<Path> paths = Files.list(categoryDir)) {
-            for (Path existing : paths.filter(Files::isRegularFile).toArray(Path[]::new)) {
-                if (existing.getFileName().toString().toLowerCase(Locale.ROOT).startsWith(IMAGE_PREFIX)) {
-                    Files.deleteIfExists(existing);
-                }
-            }
-        }
+    private static String extractFileName(String url) {
+        int slash = url.lastIndexOf('/');
+        return slash >= 0 && slash < url.length() - 1 ? url.substring(slash + 1) : null;
     }
 }

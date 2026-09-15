@@ -94,6 +94,9 @@ Set this after the UI services are deployed (required for browser calls).
 | `CATALOG_PUBLIC_BASE_URL` | `https://catalog-service-1089274910156.asia-southeast1.run.app` |
 | `PARTY_SERVICE_BASE_URL` | `https://party-service-1089274910156.asia-southeast1.run.app` |
 | `PRICING_SERVICE_BASE_URL` | `https://pricing-1089274910156.asia-southeast1.run.app` |
+| `CATALOG_STORAGE_TYPE` | `gcs` |
+| `GCS_BUCKET` | `playpro-catalog-media` |
+| `GCS_PUBLIC_BASE_URL` | optional CDN base; empty → `https://storage.googleapis.com/<bucket>` |
 | `CORS_ALLOWED_ORIGINS` | (see shared) |
 
 ## orders

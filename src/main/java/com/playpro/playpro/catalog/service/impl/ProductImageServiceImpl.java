@@ -5,34 +5,29 @@ import com.playpro.playpro.catalog.dto.ProductImageImportResultDto;
 import com.playpro.playpro.catalog.dto.ProductImageInfoDto;
 import com.playpro.playpro.catalog.entity.product.Product;
 import com.playpro.playpro.catalog.exception.ResourceNotFoundException;
-import com.playpro.playpro.catalog.productimage.ProductImageProperties;
+import com.playpro.playpro.catalog.media.ImageFileSupport;
 import com.playpro.playpro.catalog.productimage.ProductImageSize;
 import com.playpro.playpro.catalog.repository.ProductRepository;
 import com.playpro.playpro.catalog.service.ProductImageService;
-import org.springframework.core.io.FileSystemResource;
+import com.playpro.playpro.catalog.storage.ImageFolders;
+import com.playpro.playpro.catalog.storage.ImageObjectStore;
+import com.playpro.playpro.catalog.storage.StoredImageObject;
 import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.PostConstruct;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -49,18 +44,11 @@ public class ProductImageServiceImpl implements ProductImageService {
     ));
 
     private final ProductRepository productRepository;
-    private final ProductImageProperties properties;
-    private Path storageRoot;
+    private final ImageObjectStore imageObjectStore;
 
-    public ProductImageServiceImpl(ProductRepository productRepository, ProductImageProperties properties) {
+    public ProductImageServiceImpl(ProductRepository productRepository, ImageObjectStore imageObjectStore) {
         this.productRepository = productRepository;
-        this.properties = properties;
-    }
-
-    @PostConstruct
-    public void initStorage() throws IOException {
-        storageRoot = Paths.get(properties.getStoragePath()).toAbsolutePath().normalize();
-        Files.createDirectories(storageRoot);
+        this.imageObjectStore = imageObjectStore;
     }
 
     @Override
@@ -160,10 +148,6 @@ public class ProductImageServiceImpl implements ProductImageService {
             throw new IllegalStateException("Failed to read ZIP archive", ex);
         }
 
-        if (total == 0) {
-            skipped = 0;
-        }
-
         result.setTotalEntries(total);
         result.setImported(imported);
         result.setSkipped(skipped);
@@ -174,15 +158,7 @@ public class ProductImageServiceImpl implements ProductImageService {
     @Override
     @Transactional(readOnly = true)
     public Resource loadImageFile(String productId, String fileName) {
-        validateFileName(fileName);
-        Path filePath = storageRoot.resolve(sanitizeProductId(productId)).resolve(fileName).normalize();
-        if (!filePath.startsWith(storageRoot)) {
-            throw new IllegalArgumentException("Invalid image path");
-        }
-        if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
-            throw new ResourceNotFoundException("Image not found: " + fileName);
-        }
-        return new FileSystemResource(filePath);
+        return imageObjectStore.load(ImageFolders.PRODUCT, productId, fileName);
     }
 
     private ProductImageInfoDto storeImageBytes(String productId,
@@ -193,23 +169,22 @@ public class ProductImageServiceImpl implements ProductImageService {
         Product product = loadProduct(productId);
         String normalizedExt = "jpeg".equals(extension) ? "jpg" : extension;
         String fileName = size.getPathSegment() + "." + normalizedExt;
-        Path productDir = storageRoot.resolve(sanitizeProductId(productId));
-        Path target = productDir.resolve(fileName);
+        String prefix = size.getPathSegment() + ".";
+        MediaType mediaType = ImageFileSupport.resolveMediaType(fileName);
 
-        try {
-            Files.createDirectories(productDir);
-            deleteExistingSizeFiles(productDir, size);
-            Files.copy(new ByteArrayInputStream(content), target, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException ex) {
-            throw new IllegalStateException("Failed to store image file", ex);
-        }
+        StoredImageObject stored = imageObjectStore.store(
+                ImageFolders.PRODUCT,
+                productId,
+                fileName,
+                prefix,
+                content,
+                mediaType.toString());
 
-        String publicUrl = buildPublicUrl(productId, fileName);
-        applyImageUrl(product, size, publicUrl);
+        applyImageUrl(product, size, stored.getPublicUrl());
         product.applyAuditOnUpdate(principal);
         productRepository.save(product);
 
-        return buildImageInfo(product, size, fileName, target);
+        return buildImageInfo(product, size, stored.getFileName(), stored.getPublicUrl(), true);
     }
 
     private ParsedImagePath parseImagePath(String sourcePath) {
@@ -272,25 +247,42 @@ public class ProductImageServiceImpl implements ProductImageService {
     }
 
     private ProductImageInfoDto buildImageInfo(Product product, ProductImageSize size) {
-        Path productDir = storageRoot.resolve(sanitizeProductId(product.getProductId()));
-        String fileName = findExistingFileName(productDir, size).orElse(null);
-        Path filePath = fileName != null ? productDir.resolve(fileName) : null;
-        return buildImageInfo(product, size, fileName, filePath);
+        String url = getImageUrl(product, size);
+        boolean uploaded = StringUtils.hasText(url);
+        String fileName = null;
+        if (uploaded && imageObjectStore.servesViaCatalogApi()) {
+            fileName = imageObjectStore.findFileName(
+                    ImageFolders.PRODUCT, product.getProductId(), size.getPathSegment() + ".").orElse(null);
+        } else if (uploaded) {
+            fileName = extractFileName(url);
+        }
+        return buildImageInfo(product, size, fileName, url, uploaded);
     }
 
-    private ProductImageInfoDto buildImageInfo(Product product, ProductImageSize size, String fileName, Path filePath) {
+    private ProductImageInfoDto buildImageInfo(Product product,
+                                               ProductImageSize size,
+                                               String fileName,
+                                               String url,
+                                               boolean uploaded) {
         ProductImageInfoDto dto = new ProductImageInfoDto();
         dto.setSize(size.getPathSegment());
         dto.setLabel(size.getLabel());
-        dto.setUrl(getImageUrl(product, size));
-        if (filePath != null && Files.exists(filePath)) {
-            dto.setFileName(fileName);
-            dto.setStoragePath(storageRoot.relativize(filePath).toString().replace('\\', '/'));
-            dto.setUploaded(true);
-        } else {
-            dto.setUploaded(false);
+        dto.setUrl(url);
+        dto.setFileName(fileName);
+        dto.setUploaded(uploaded);
+        if (uploaded && StringUtils.hasText(fileName)) {
+            dto.setStoragePath(ImageFolders.PRODUCT + "/"
+                    + ImageFileSupport.sanitizeEntityId(product.getProductId()) + "/" + fileName);
         }
         return dto;
+    }
+
+    private static String extractFileName(String url) {
+        if (!StringUtils.hasText(url)) {
+            return null;
+        }
+        int slash = url.lastIndexOf('/');
+        return slash >= 0 && slash < url.length() - 1 ? url.substring(slash + 1) : null;
     }
 
     private String getImageUrl(Product product, ProductImageSize size) {
@@ -327,43 +319,6 @@ public class ProductImageServiceImpl implements ProductImageService {
         }
     }
 
-    private String buildPublicUrl(String productId, String fileName) {
-        String base = properties.getPublicBaseUrl();
-        if (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
-        return base + "/catalog/product-images/" + sanitizeProductId(productId) + "/" + fileName;
-    }
-
-    private void deleteExistingSizeFiles(Path productDir, ProductImageSize size) throws IOException {
-        if (!Files.exists(productDir)) {
-            return;
-        }
-        String prefix = size.getPathSegment() + ".";
-        try (Stream<Path> paths = Files.list(productDir)) {
-            for (Path existing : paths.filter(Files::isRegularFile).toArray(Path[]::new)) {
-                if (existing.getFileName().toString().toLowerCase(Locale.ROOT).startsWith(prefix)) {
-                    Files.deleteIfExists(existing);
-                }
-            }
-        }
-    }
-
-    private Optional<String> findExistingFileName(Path productDir, ProductImageSize size) {
-        if (!Files.exists(productDir)) {
-            return Optional.empty();
-        }
-        String prefix = size.getPathSegment() + ".";
-        try (Stream<Path> paths = Files.list(productDir)) {
-            return paths.filter(Files::isRegularFile)
-                    .map(path -> path.getFileName().toString())
-                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(prefix))
-                    .findFirst();
-        } catch (IOException ex) {
-            return Optional.empty();
-        }
-    }
-
     private String resolveExtension(MultipartFile file) {
         String original = file.getOriginalFilename();
         if (original != null && original.contains(".")) {
@@ -390,31 +345,6 @@ public class ProductImageServiceImpl implements ProductImageService {
         }
 
         throw new IllegalArgumentException("Unsupported image type. Allowed: jpg, png, gif, webp");
-    }
-
-    private String sanitizeProductId(String productId) {
-        if (productId == null || productId.trim().isEmpty()) {
-            throw new IllegalArgumentException("productId is required");
-        }
-        String sanitized = productId.trim().replaceAll("[^A-Za-z0-9._-]", "_");
-        if (sanitized.isEmpty()) {
-            throw new IllegalArgumentException("Invalid productId");
-        }
-        return sanitized;
-    }
-
-    private void validateFileName(String fileName) {
-        if (fileName == null || fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
-            throw new IllegalArgumentException("Invalid file name");
-        }
-        int dot = fileName.lastIndexOf('.');
-        if (dot <= 0) {
-            throw new IllegalArgumentException("Invalid file name");
-        }
-        String ext = fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
-        if (!ALLOWED_EXTENSIONS.contains(ext) && !"jpeg".equals(ext)) {
-            throw new IllegalArgumentException("Unsupported image type");
-        }
     }
 
     private static final class ParsedImagePath {
