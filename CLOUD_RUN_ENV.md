@@ -99,6 +99,24 @@ Set this after the UI services are deployed (required for browser calls).
 | `GCS_PUBLIC_BASE_URL` | optional CDN base; empty → `https://storage.googleapis.com/<bucket>` |
 | `CORS_ALLOWED_ORIGINS` | (see shared) |
 
+### GCS public image reads (required for storefront)
+
+Next.js `/_next/image` fetches the GCS URL server-side. If the object is private, browsers and the optimizer get **403**.
+
+For bucket `playpro-catalog-media` (uniform bucket-level access — typical):
+
+```bash
+gcloud storage buckets add-iam-policy-binding gs://playpro-catalog-media \
+  --member=allUsers \
+  --role=roles/storage.objectViewer
+```
+
+Or in Console: bucket → Permissions → Grant access → principal `allUsers` → role **Storage Object Viewer**.
+
+Also grant the Cloud Run catalog SA `roles/storage.objectAdmin` (upload/delete).
+
+Verify: open `https://storage.googleapis.com/playpro-catalog-media/catalog-images/BADMINTON/logo.png` — should be **200**, not 403.
+
 ## orders
 
 | Env var | Default / example |

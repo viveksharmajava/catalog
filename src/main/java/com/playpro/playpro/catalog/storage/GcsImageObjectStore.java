@@ -74,7 +74,19 @@ public class GcsImageObjectStore implements ImageObjectStore {
             if (StringUtils.hasText(contentType)) {
                 builder.setContentType(contentType);
             }
-            storage.create(builder.build(), content);
+            BlobInfo blobInfo = builder.build();
+            // Prefer public-read ACL when the bucket uses fine-grained access. Uniform
+            // bucket-level access ignores object ACLs — grant allUsers roles/storage.objectViewer
+            // on the bucket instead (required for Next.js / browser image loads).
+            try {
+                storage.create(blobInfo, content,
+                        Storage.BlobTargetOption.predefinedAcl(Storage.PredefinedAcl.PUBLIC_READ));
+            } catch (StorageException aclEx) {
+                log.warn("GCS PUBLIC_READ ACL not applied (bucket may use uniform access): {}. "
+                                + "Ensure allUsers has roles/storage.objectViewer on gs://{}",
+                        aclEx.getMessage(), bucket);
+                storage.create(blobInfo, content);
+            }
             log.info("Stored GCS object gs://{}/{} ({} bytes)", bucket, objectKey, content.length);
 
             String url = publicUrl(folder, entityId, fileName);
