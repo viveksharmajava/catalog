@@ -4,7 +4,7 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Consolidated MySQL migration for catalog
--- Source migrations: V1__init.sql, V2__categories.sql, V3__enterprise_product_model.sql, V4__admin_users.sql, V5__prod_catalog.sql, V6__prod_catalog_category.sql, V7__product_store.sql, V8__prod_catalog_cart_enabled.sql, V9__product_store_setting.sql, V10__product_store_setting_backfill.sql, V11__product_store_setting_content.sql, V12__widen_product_id.sql, V13__seed_storefront_page_content.sql, V14__product_store_payment_method.sql, V15__product_store_shipping_method.sql, V16__product_store_variant.sql, V17__product_variant_option.sql
+-- Source migrations: V1__init.sql, V2__categories.sql, V3__enterprise_product_model.sql, V4__admin_users.sql, V5__prod_catalog.sql, V6__prod_catalog_category.sql, V7__product_store.sql, V8__prod_catalog_cart_enabled.sql, V9__product_store_setting.sql, V10__product_store_setting_backfill.sql, V11__product_store_setting_content.sql, V12__widen_product_id.sql, V13__seed_storefront_page_content.sql, V14__product_store_payment_method.sql, V15__product_store_shipping_method.sql, V16__product_store_variant.sql, V17__product_variant_option.sql, V18__widen_prod_catalog_header_logo.sql
 -- Converted for Google Cloud SQL MySQL 8
 
 -- ========== V1__init.sql ==========
@@ -380,7 +380,7 @@ CREATE TABLE IF NOT EXISTS prod_catalog (
     catalog_name             VARCHAR(100) NOT NULL,
     use_quick_add            CHAR(1)      DEFAULT 'Y',
     style_sheet              VARCHAR(250),
-    header_logo              VARCHAR(250),
+    header_logo              VARCHAR(2000),
     content_path_prefix      VARCHAR(255),
     template_path_prefix     VARCHAR(255),
     view_allow_perm_reqd     CHAR(1)      DEFAULT 'N',
@@ -908,6 +908,12 @@ CREATE TABLE IF NOT EXISTS product_variant_option_value (
 );
 
 CREATE INDEX idx_pvov_type ON product_variant_option_value (variant_type_id);
+
+
+-- ========== V18__widen_prod_catalog_header_logo.sql ==========
+
+-- GCS / CDN public URLs exceed the original 250-char header_logo limit.
+ALTER TABLE prod_catalog MODIFY COLUMN header_logo VARCHAR(2000);
 
 
 SET FOREIGN_KEY_CHECKS = 1;

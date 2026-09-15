@@ -22,7 +22,7 @@ public class ProdCatalog {
     @Column(name = "style_sheet", length = 250)
     private String styleSheet;
 
-    @Column(name = "header_logo", length = 250)
+    @Column(name = "header_logo", length = 2000)
     private String headerLogo;
 
     @Column(name = "content_path_prefix", length = 255)

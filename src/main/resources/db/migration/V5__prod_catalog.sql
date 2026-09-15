@@ -5,7 +5,7 @@ CREATE TABLE prod_catalog (
     catalog_name             VARCHAR(100) NOT NULL,
     use_quick_add            CHAR(1)      DEFAULT 'Y',
     style_sheet              VARCHAR(250),
-    header_logo              VARCHAR(250),
+    header_logo              VARCHAR(2000),
     content_path_prefix      VARCHAR(255),
     template_path_prefix     VARCHAR(255),
     view_allow_perm_reqd     CHAR(1)      DEFAULT 'N',
